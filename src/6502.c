@@ -4,11 +4,36 @@
 
 #include "6502.h"
 
+#include <string.h>
+
 struct _6502* cpu_6502_create(void)
 {
   struct _6502* cpu = malloc(sizeof(struct _6502));
 
+  // power on state
+
+  cpu->r.flags = (struct flag){0, 0, 1, 1, 0, 1, 0, 0};
+  cpu->r.a = cpu->r.x = cpu->r.y = 0;
+  cpu->r.sp = 0xFD;
+
+  memset(cpu->mem.lowmem, 0xFF, 0x800);
+
+  cpu->mem.lowmem[0x08] = 0xF7;
+  cpu->mem.lowmem[0x09] = 0xEF;
+  cpu->mem.lowmem[0x0A] = 0xDF;
+  cpu->mem.lowmem[0x0F] = 0xBF;
+
+  // TODO: initiate high memory (PPU regs, etc.) to proper power on state
+
   return cpu;
+}
+
+void cpu_6502_reset(struct _6502* cpu)
+{
+  cpu->r.sp -= 3;
+  cpu->r.flags.i = 1;
+
+  // TODO: put APU into reset state
 }
 
 void cpu_6502_free(struct _6502* cpu)
@@ -48,10 +73,12 @@ static u8 fetch_memory(struct _6502* cpu, u16 addr)
     return cpu->mem.ppureg[addr & 0x7];
   }
 
-  // PPU memory
+  // APU registers
   if(addr < 0x4018) {
-    return cpu->mem.ppureg[addr & 0x7];
+    return cpu->mem.apureg[addr & 0x7];
   }
+
+  // TODO: SRAM, PRG-RAM, etc.
 
   else {
     printf("Warning: accessing 0x%X, which is unknown\n", addr);
@@ -72,13 +99,30 @@ static void set_memory(struct _6502* cpu, u16 addr, u8 value)
     cpu->mem.ppureg[addr & 0x7] = value;
   }
 
-  // PPU memory
+  // APU registers
   else if(addr < 0x4018) {
+    cpu->mem.apureg[addr & 0x17] = value;
   }
+
+  // TODO: SRAM, PRG-RAM, etc.
 
   else {
     printf("Warning: writing 0x%X, which is unknown\n", addr);
   }
+}
+
+// push a value onto the stack
+void cpu_6502_push_stack(struct _6502* cpu, u8 val)
+{
+  u16 addr = 0x100 + cpu->r.sp--;
+  set_memory(cpu, addr, val);
+}
+
+// pop a value off of the stack
+u8 cpu_6502_pop_stack(struct _6502* cpu)
+{
+  u16 addr = 0x100 + cpu->r.sp++;
+  return fetch_memory(cpu, addr);
 }
 
 // 6502 is little endian

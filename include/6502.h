@@ -69,9 +69,9 @@ struct registers {
 
 // the various memory blocks of significance
 struct cpu_memory {
-  u8 lowmem[0x800]; // 2K internal RAM                 0x0000-0x0800 (mirrored 3 times after)
-  u8 ppureg[0x008]; // 8B dedicated PPU register mem   0x2000-0x2008 (mirrored a lot of times)
-  u8 apureg[0x018]; // TODO:
+  u8 lowmem[0x800]; // 2K internal RAM
+  u8 ppureg[0x008]; // 8B PPU registers
+  u8 apureg[0x018]; // 18B APU registers
 };
 
 struct _6502 {
@@ -87,8 +87,11 @@ const extern u8 cycles[0x100];
 
 // functions
 struct _6502* cpu_6502_create(void);
+void          cpu_6502_reset(struct _6502* cpu);
 void          cpu_6502_evaluate(struct _6502* cpu);
 void          cpu_6502_free(struct _6502* cpu);
 void          cpu_6502_inspect(struct _6502* cpu);
+void          cpu_6502_push_stack(struct _6502* cpu, u8 value);
+u8            cpu_6502_pop_stack(struct _6502* cpu);
 
 #endif /* _6502_H */
