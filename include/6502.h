@@ -78,7 +78,6 @@ struct _6502 {
   struct registers r;
   u32 ticks;
 
-  u8 *pages[256];   // initialized to valid values in cpu_6502_init_pages
   // important memory areas
   struct cpu_memory mem;
 };
@@ -88,7 +87,6 @@ const extern u8 cycles[0x100];
 
 // functions
 struct _6502* cpu_6502_create(void);
-void          cpu_6502_init_pages(struct _6502* cpu);
 void          cpu_6502_evaluate(struct _6502* cpu);
 void          cpu_6502_free(struct _6502* cpu);
 void          cpu_6502_inspect(struct _6502* cpu);

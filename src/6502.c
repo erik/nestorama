@@ -8,8 +8,6 @@ struct _6502* cpu_6502_create(void)
 {
   struct _6502* cpu = malloc(sizeof(struct _6502));
 
-  cpu_6502_init_pages(cpu);
-
   return cpu;
 }
 
@@ -38,61 +36,54 @@ void cpu_6502_inspect(struct _6502* cpu)
          );
 }
 
-void cpu_6502_init_pages(struct _6502* cpu)
-{
-
-#define SETPAGE(addr, size, val) {                          \
-    int _pgi = addr >> 8, _s = size < 0x100 ? 0x100 : size; \
-    for(int _i = 0; _i < _s / 0x100; _i++) {                \
-      pages[_pgi + _i] = val + 0x100 * _i;                  \
-    }                                                       \
-  }
-
-  const u8 **pages = (const u8**)cpu->pages;
-  const struct cpu_memory *mem = &cpu->mem;
-
-  // Internal RAM
-  SETPAGE(0x0000, 0x0800, mem->lowmem);
-
-  // Mirrors of RAM
-  SETPAGE(0x0800, 0x0800, mem->lowmem);
-  SETPAGE(0x1000, 0x0800, mem->lowmem);
-  SETPAGE(0x1800, 0x0800, mem->lowmem);
-
-  // PPU registers
-  SETPAGE(0x2000, 0x0008, mem->ppureg);
-
-  // Mirrors of PPU registers
-  for(int base_addr = 0x2008; base_addr < 0x4000; base_addr += 0x0008) {
-    // TODO: This segment may prove to be problematic
-    SETPAGE(base_addr, 0x0100, mem->ppureg);
-  }
-
-  // TODO: finish this
-  // special locations (0xFFFA-0xFFE, etc.) should be treated specially, and not
-  // directly mapped.
-
-#undef SETPAGE
-}
-
 static u8 fetch_memory(struct _6502* cpu, u16 addr)
 {
-  int page_index  = addr >> 8;
-  int page_offset = addr & 0xFF;
+  // Low memory
+  if(addr < 0x2000) {
+    return cpu->mem.lowmem[addr & 0x7FF];
+  }
 
-  return cpu->pages[page_index][page_offset];
+  // PPU registers
+  if(addr < 0x4000) {
+    return cpu->mem.ppureg[addr & 0x7];
+  }
+
+  // PPU memory
+  if(addr < 0x4018) {
+    return cpu->mem.ppureg[addr & 0x7];
+  }
+
+  else {
+    printf("Warning: accessing 0x%X, which is unknown\n", addr);
+    return ~0;
+  }
 }
 
 static void set_memory(struct _6502* cpu, u16 addr, u8 value)
 {
-  int page_index  = addr >> 8;
-  int page_offset = addr & 0xFF;
 
-  cpu->pages[page_index][page_offset] = value;
+  // Low memory
+  if(addr < 0x2000) {
+    cpu->mem.lowmem[addr & 0x7FF] = value;
+  }
+
+  // PPU registers
+  else if(addr < 0x4000) {
+    cpu->mem.ppureg[addr & 0x7] = value;
+  }
+
+  // PPU memory
+  else if(addr < 0x4018) {
+  }
+
+  else {
+    printf("Warning: writing 0x%X, which is unknown\n", addr);
+  }
 }
 
 // 6502 is little endian
-static u16 create_u16(u8 msb, u8 lsb) {
+static u16 create_u16(u8 msb, u8 lsb)
+{
   return msb | lsb << 8;
 }
 
@@ -116,7 +107,7 @@ static u16 create_u16(u8 msb, u8 lsb) {
 #define ZPY val = MEM(PCVAL + cpu->r.y);
 #define IZX val = PCVAL + cpu->r.x;
 #define IZY /* TODO */
-#define ABS val = MEM(create_u16(PCVAL, PCVAL));
+#define ABS val = MEM(create_u16(MEM(PC + 1), MEM(PC + 2))); PC += 2;
 #define ABX /* TODO */
 #define ABY /* TODO */
 
@@ -126,7 +117,7 @@ static u16 create_u16(u8 msb, u8 lsb) {
 #define ZPY16 val16 = PCVAL + cpu->r.y
 #define IZX16 /* TODO */
 #define IZY16 /* TODO */
-#define ABS16 val16 = create_u16(PCVAL, PCVAL);
+#define ABS16 val16 = create_u16(MEM(PC + 1), MEM(PC + 2)); PC += 2;
 #define ABX16 /* TODO */
 #define ABY16 /* TODO */
 
