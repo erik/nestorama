@@ -584,8 +584,6 @@ void cpu_6502_evaluate(struct _6502 *cpu)
     printf("KIL: kill proc here\n");
     break;
 
-    ///// Invalid operations
-
   default:
     printf("WARNINGWARNINGWARNING: OPCODE %X IS NOT IMPLEMENTED\n", op);
     break;

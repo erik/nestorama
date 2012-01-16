@@ -10,7 +10,7 @@ LIBS := $(shell sdl-config --libs)
 CFLAGS  := -Wall -Wextra -std=c99 -pedantic $(shell sdl-config --cflags) -Iinclude/ -Wno-unused
 LNFLAGS := $(LIBS)
 
-EXE := nes
+EXE := nestorama
 
 all: $(COBJ) $(CHDR) $(EXE)
 
@@ -27,11 +27,11 @@ clean:
 	rm -f $(COBJ)
 
 todo:
-	@find . -type f | xargs grep -n -i "TODO"
-	@find . -type f | xargs grep -n -i "FIXME"
-
+	@ack --type=cc 'XXX'
+	@ack --type=cc 'TODO'
+	@ack --type=cc 'FIXME'
 loc:
-	@wc -l ./*.[ch]
+	@ack --type=cc -f | xargs wc -l | sort -h
 
 check-syntax:
 	gcc -o nul -S $(CSRC) -I $(CHDR)
