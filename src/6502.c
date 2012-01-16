@@ -12,9 +12,7 @@ struct _6502* cpu_6502_create(void)
 
   // power on state
 
-  u8 init_flag = 0x34;
-
-  cpu->r.flags = U8_TO_FLAG(init_flag);
+  cpu->r.flags = u8_to_flag(0x34);
   cpu->r.a = cpu->r.x = cpu->r.y = 0;
   cpu->r.sp = 0xFD;
 
@@ -142,17 +140,20 @@ static u16 create_u16(u8 msb, u8 lsb)
 #define PC        (cpu->r.pc)
 #define FLAGS     (cpu->r.flags)
 
+#define POP       cpu_6502_pop_stack(cpu)
+#define PUSH(v)   cpu_6502_push_stack(cpu, v)
+
 // value of memory at program counter *pc
 #define PCVAL     (MEM(++cpu->r.pc))
 
 // these procedures are common to every opcode
 #define IMP /* nothing */
-#define IMM val = MEM(++PC);
+#define IMM val = PCVAL;
 #define ZP  val = MEM(PCVAL);
-#define ZPX val = MEM(PCVAL + cpu->r.x);
-#define ZPY val = MEM(PCVAL + cpu->r.y);
-#define IZX val = PCVAL + cpu->r.x;
-#define IZY /* TODO */
+#define ZPX val = MEM(PCVAL + X);
+#define ZPY val = MEM(PCVAL + Y);
+#define IZX val = MEM(MEM(PCVAL + X));
+#define IZY val = MEM(MEM(PCVAL)) + Y;
 #define ABS val = MEM(create_u16(MEM(PC + 1), MEM(PC + 2))); PC += 2;
 #define ABX /* TODO */
 #define ABY /* TODO */
@@ -267,25 +268,43 @@ void cpu_6502_evaluate(struct _6502 *cpu)
     OP(0xCD, CMP, ABS); // CMP abs
     OP(0xDD, CMP, ABX); // CMP abx
     OP(0xD9, CMP, ABY); // CMP aby
-  CMP:
-    printf("CMP NOT IMPLEMENTED\n");
-    break;
+  CMP: {
+      printf("CMP: 0x%X CMP 0x%X => %d\n", A, val, A - val);
+
+      u8 v = A - val;
+      FLAGS.n = v & ~0;
+      FLAGS.z = v;
+      FLAGS.c = A >= v;
+      break;
+    }
 
     // CPX
     OP(0xE0, CPX, IMM); // CPX imm
     OP(0xE4, CPX, ZP);  // CPX zp
     OP(0xEC, CPX, ABS); // CPX abs
-  CPX:
-    printf("CPX NOT IMPLEMENTED\n");
-    break;
+  CPX: {
+      printf("CPX: 0x%X CPX 0x%X => %d\n", X, val, X - val);
+
+      u8 v = X - val;
+      FLAGS.n = v & ~0;
+      FLAGS.z = v;
+      FLAGS.c = X >= v;
+      break;
+    }
 
     // CPY
     OP(0xC0, CPY, IMM); // CPY imm
     OP(0xC4, CPY, ZP);  // CPY zp
     OP(0xCC, CPY, ABS); // CPY abs
-  CPY:
-    printf("CPY NOT IMPLEMENTED\n");
-    break;
+  CPY: {
+      printf("CPY: 0x%X CPX 0x%X => %d\n", Y, val, Y - val);
+
+      u8 v = Y - val;
+      FLAGS.n = v & ~0;
+      FLAGS.z = v;
+      FLAGS.c = Y >= v;
+      break;
+    }
 
     // DEC
     OP(0xC6, DEC, ZP16);  //DEC zp
@@ -408,17 +427,21 @@ void cpu_6502_evaluate(struct _6502 *cpu)
     OP(0xB6, LDX, ZPY); // LDX zpy
     OP(0xAE, LDX, ABS); // LDX abs
     OP(0xBE, LDX, ABY); // LDX aby
-  LDX:
-    printf("LDX NOT IMPLEMENTED\n");
-    break;
+  LDX: {
+      printf("LDX: X = 0x%X\n", val);
+      X = val;
+      break;
+    }
 
     // STX
     OP(0x86, STX, ZP16);  // STX zp
     OP(0x96, STX, ZPY16); // STX zpy
     OP(0x8E, STX, ABS16); // STX abs
-  STX:
-    printf("STX NOT IMPLEMENTED\n");
-    break;
+  STX: {
+      printf("STX: 0x%X -> 0x%X\n", val16, X);
+      set_memory(cpu, val16, X);
+      break;
+    }
 
     // LDY
     OP(0xA0, LDY, IMM); // LDY imm
@@ -427,27 +450,31 @@ void cpu_6502_evaluate(struct _6502 *cpu)
     OP(0xAC, LDY, ABS); // LDY abs
     OP(0xBC, LDY, ABX); // LDY abx
   LDY:
-    printf("LDY NOT IMPLEMENTED\n");
+    printf("LDX: Y = 0x%X\n", val);
+    Y = val;
     break;
+
 
     // STY
     OP(0x84, STY, ZP16);  // STY zp
     OP(0x94, STY, ZPX16); // STY zpx
     OP(0x8C, STY, ABS16); // STY abs
   STY:
-    printf("STY NOT IMPLEMENTED\n");
+    printf("STY: 0x%X -> 0x%X\n", val16, Y);
+    set_memory(cpu, val16, Y);
     break;
 
-    IMP_OP(0xAA, X = A); // TAX imp
-    IMP_OP(0x8A, A = X); // TXA imp
-    IMP_OP(0xA8, Y = A); // TAY imp
-    IMP_OP(0x98, A = Y); // TYA imp
+
+    IMP_OP(0xAA, X = A);  // TAX imp
+    IMP_OP(0x8A, A = X);  // TXA imp
+    IMP_OP(0xA8, Y = A);  // TAY imp
+    IMP_OP(0x98, A = Y);  // TYA imp
     IMP_OP(0xBA, X = SP); // TSX imp
     IMP_OP(0x9A, SP = X); // TXS imp
 
-    IMP_OP(0x68, /* TODO */); // PLA imp
-    IMP_OP(0x48, /* TODO */); // PHA imp
-    IMP_OP(0x08, /* TODO */); // PHP imp
+    IMP_OP(0x68, A = POP);                 // PLA imp
+    IMP_OP(0x48, PUSH(A));                 // PHA imp
+    IMP_OP(0x08, PUSH(flag_to_u8(FLAGS))); // PHP imp
 
     ///// Jump / flag operations
 
@@ -461,24 +488,39 @@ void cpu_6502_evaluate(struct _6502 *cpu)
     REL_OP(0xD0, BRANCH_IF(!FLAGS.z)); // BNE rel
     REL_OP(0xF0, BRANCH_IF(FLAGS.z));  // BEQ rel
 
-    IMP_OP(0x00, /* TODO */); // BRK imp
-    IMP_OP(0x40, /* TODO */); // RTI imp
+    IMP_OP(0x00,                       // BRK imp
+           PUSH(PC);
+           PUSH(flag_to_u8(FLAGS));
+           PC = 0xFFFE - 1);
 
-    OP(0x20, JSR, ABS);       // JSR abs
-  JSR: /* TODO */ break;
+    IMP_OP(0x40,                       // RTI imp
+           FLAGS = u8_to_flag(POP);
+           PC = POP -1);
 
-    IMP_OP(0x60, /* TODO */); // RTS imp
+    OP(0x20, JSR, ABS16);              // JSR abs
+  JSR: {
+      PUSH(PC);
+      PC = val16 - 1;
+      break;
+    }
 
-    OP(0x4C, JMP, ABS16);               // JMP abs
-    OP(0x6C, JMP, val16 = MEM(PCVAL));  // JMP ind
+    IMP_OP(0x60, PC = POP - 1);        // RTS imp
+
+    OP(0x4C, JMP, ABS16);              // JMP abs
+    OP(0x6C, JMP, val16 = MEM(PCVAL)); // JMP ind
   JMP:
-    // val - 1 because there is a ++PC at the end of the switch
     printf("JMP: PC = 0x%X\n", PC = val16 - 1);
     break;
 
     OP(0x24, BIT, ZP);        // BIT zp
     OP(0x2C, BIT, ABS);       // BIT abs
-  BIT: /* TODO */ break;
+  BIT: {
+      // XXX: This is probably incorrect
+      FLAGS.n = val & (1 << 7);
+      FLAGS.v = val & (1 << 6);
+      FLAGS.z = val & A;
+      break;
+    }
 
     // set flags
     IMP_OP(0x18, FLAGS.c = 0); // CLC imp
@@ -536,6 +578,7 @@ void cpu_6502_evaluate(struct _6502 *cpu)
     OP(0x72, KIL, IMP);  // KIL imp
     OP(0x92, KIL, IMP);  // KIL imp
     OP(0xB2, KIL, IMP);  // KIL imp
+    OP(0xD2, KIL, IMP);  // KIL imp
     OP(0xF2, KIL, IMP);  // KIL imp
   KIL:
     printf("KIL: kill proc here\n");
@@ -549,10 +592,14 @@ void cpu_6502_evaluate(struct _6502 *cpu)
   } // switch (op)
 
   FLAGS.n = FLAGS.c = A;
-  PC += 1;
   cpu->ticks += cycles[op];
+
+  // TODO: this is annoying, factor out the +1
+  PC += 1;
 }
 
+
+// TODO: ditch cycles table and do it by hand (every mem r/w is a cycle, etc.)
 const u8 cycles[0x100] = {
   //0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
   7, 6, 0, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6, // 0

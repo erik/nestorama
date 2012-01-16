@@ -34,10 +34,6 @@ struct flag {
 
 };
 
-#define FLAG_TO_U8(flg) *(u8*)&flg
-#define U8_TO_FLAG(u8)  *(struct flag*)&u8
-
-
 struct registers {
   u8 a;                 // accumulator
   u8 x;                 // general purpose / index reg
@@ -98,5 +94,8 @@ void          cpu_6502_free(struct _6502* cpu);
 void          cpu_6502_inspect(struct _6502* cpu);
 void          cpu_6502_push_stack(struct _6502* cpu, u8 value);
 u8            cpu_6502_pop_stack(struct _6502* cpu);
+
+static struct flag u8_to_flag(u8 u) { return *(struct flag*)&u; }
+static u8 flag_to_u8(struct flag f) { return *(u8*)&f; }
 
 #endif /* _6502_H */
