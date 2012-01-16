@@ -12,7 +12,9 @@ struct _6502* cpu_6502_create(void)
 
   // power on state
 
-  cpu->r.flags = (struct flag){0, 0, 1, 1, 0, 1, 0, 0};
+  u8 init_flag = 0x34;
+
+  cpu->r.flags = U8_TO_FLAG(init_flag);
   cpu->r.a = cpu->r.x = cpu->r.y = 0;
   cpu->r.sp = 0xFD;
 
@@ -51,8 +53,8 @@ void cpu_6502_inspect(struct _6502* cpu)
   }
 
   printf("6502 = {\n"                                   \
-         "\tticks=%d\n"                                 \
-         "\tregisters = {"                              \
+         "  ticks=%d\n"                                 \
+         "  registers = {"                              \
          " a=0x%X, x=0x%X, y=0x%x, sp=0x%X, "           \
          "pc=0x%X, flags (CZIDBUVN)=%s }\n"
          "}\n",
@@ -487,18 +489,59 @@ void cpu_6502_evaluate(struct _6502 *cpu)
     IMP_OP(0x78, FLAGS.i = 1); // SEI imp
     IMP_OP(0xB8, FLAGS.v = 0); // CLV imp
 
+    ///// NOP
+
     IMP_OP(0xEA, /* NOP */);   // NOP imp
+    IMP_OP(0x1A, /* NOP */);   // NOP imp
+    IMP_OP(0x3A, /* NOP */);   // NOP imp
+    IMP_OP(0x5A, /* NOP */);   // NOP imp
+    IMP_OP(0x7A, /* NOP */);   // NOP imp
+    IMP_OP(0xDA, /* NOP */);   // NOP imp
+    IMP_OP(0xFA, /* NOP */);   // NOP imp
+
+    IMP_OP(0x80, IMM);         // NOP imm
+    IMP_OP(0x82, IMM);         // NOP imm
+    IMP_OP(0x89, IMM);         // NOP imm
+    IMP_OP(0xC2, IMM);         // NOP imm
+    IMP_OP(0xE2, IMM);         // NOP imm
+
+    IMP_OP(0x04, ZP);          // NOP zp
+    IMP_OP(0x44, ZP);          // NOP zp
+    IMP_OP(0x64, ZP);          // NOP zp
+
+    IMP_OP(0x14, ZPX);         // NOP zpx
+    IMP_OP(0x34, ZPX);         // NOP zpx
+    IMP_OP(0x54, ZPX);         // NOP zpx
+    IMP_OP(0x74, ZPX);         // NOP zpx
+    IMP_OP(0xD4, ZPX);         // NOP zpx
+    IMP_OP(0xF4, ZPX);         // NOP zpx
+
+    IMP_OP(0x0C, ABS);         // NOP abs
+
+    IMP_OP(0x1C, ABX);         // NOP abx
+    IMP_OP(0x3C, ABX);         // NOP abx
+    IMP_OP(0x5C, ABX);         // NOP abx
+    IMP_OP(0x7C, ABX);         // NOP abx
+    IMP_OP(0xDC, ABX);         // NOP abx
+    IMP_OP(0xFC, ABX);         // NOP abx
+
+    ///// KIL
+    OP(0x02, KIL, IMP);  // KIL imp
+    OP(0x12, KIL, IMP);  // KIL imp
+    OP(0x22, KIL, IMP);  // KIL imp
+    OP(0x32, KIL, IMP);  // KIL imp
+    OP(0x42, KIL, IMP);  // KIL imp
+    OP(0x52, KIL, IMP);  // KIL imp
+    OP(0x62, KIL, IMP);  // KIL imp
+    OP(0x72, KIL, IMP);  // KIL imp
+    OP(0x92, KIL, IMP);  // KIL imp
+    OP(0xB2, KIL, IMP);  // KIL imp
+    OP(0xF2, KIL, IMP);  // KIL imp
+  KIL:
+    printf("KIL: kill proc here\n");
+    break;
 
     ///// Invalid operations
-
-    // TODO: adapt some of these as debug ops
-  case 0x02: case 0x12: case 0x22: case 0x32: case 0x42: case 0x52:
-  case 0x62: case 0x72: case 0x92: case 0xB2: case 0xD2: case 0xF2:
-    goto invalid;
-
-  invalid:
-    printf("OPCODE %X IS INVALID\n", op);
-    break;
 
   default:
     printf("WARNINGWARNINGWARNING: OPCODE %X IS NOT IMPLEMENTED\n", op);

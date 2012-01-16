@@ -34,6 +34,10 @@ struct flag {
 
 };
 
+#define FLAG_TO_U8(flg) *(u8*)&flg
+#define U8_TO_FLAG(u8)  *(struct flag*)&u8
+
+
 struct registers {
   u8 a;                 // accumulator
   u8 x;                 // general purpose / index reg
@@ -72,6 +76,7 @@ struct cpu_memory {
   u8 lowmem[0x800]; // 2K internal RAM
   u8 ppureg[0x008]; // 8B PPU registers
   u8 apureg[0x018]; // 18B APU registers
+  u8 prgrom[2][0x4000]; // 2 * 16K PRG-ROM segments
 };
 
 struct _6502 {

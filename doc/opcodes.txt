@@ -79,4 +79,28 @@ SED     $F8                                                                     
 CLI     $58                                                                                             I:=0                      ....0..
 SEI     $78                                                                                             I:=1                      ....1..
 CLV     $B8                                                                                             V:=0                      .0.....
-NOP     $EA                                                                                             Nothing                   .......
+
+// There are numerous NOPs, $EA is official, rest are illegals that do nothing
+NOP     $EA     $80     $04     $14                             $0C     $1C                             Nothing                   .......
+        $1A     $82     $44     $34                                     $3C
+        $3A     $89     $64     $54                                     $5C
+        $5A     $C2             $74                                     $7C
+        $7A     $E2             $D4                                     $DC
+        $DA                     $F4                                     $FC
+        $FA
+
+// Illegal / Undocumented operations
+// TODO
+Opcode  imp     imm     zp      zpx     zpy     izx     izy     abs     abx     aby     ind     rel     Function                  NVBDIZC
+KIL     $02                                                                                             Halts processor           .......
+        $12
+        $22
+        $32
+        $42
+        $52
+        $62
+        $72
+        $92
+        $B2
+        $D2
+        $F2
