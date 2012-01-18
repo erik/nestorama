@@ -1,39 +1,49 @@
 /*
- * Emulation of the 6502 microcontroller used in the NES (part of the 2A07 chip)
+ * Emulation of the 6502 microcontroller used in the NES (part of the 2A03 chip)
  */
-
-#include "6502.h"
 
 #include <string.h>
 
-struct _6502* cpu_6502_create(void)
+#include "6502.h"
+#include "nes.h"
+
+struct _6502* cpu_6502_create(struct NES* nes)
 {
   struct _6502* cpu = malloc(sizeof(struct _6502));
+  cpu->nes = nes;
 
-  // power on state
-
-  cpu->r.flags = u8_to_flag(0x34);
-  cpu->r.a = cpu->r.x = cpu->r.y = 0;
-  cpu->r.sp = 0xFD;
-
-  memset(cpu->mem.lowmem, 0xFF, 0x800);
-
-  cpu->mem.lowmem[0x08] = 0xF7;
-  cpu->mem.lowmem[0x09] = 0xEF;
-  cpu->mem.lowmem[0x0A] = 0xDF;
-  cpu->mem.lowmem[0x0F] = 0xBF;
+  cpu_6502_powerup(cpu);
 
   // TODO: initiate high memory (PPU regs, etc.) to proper power on state
 
   return cpu;
 }
 
+void cpu_6502_powerup(struct _6502* cpu)
+{
+  // power on state
+
+  cpu->r.flags = u8_to_flag(0x34);
+  cpu->r.a = cpu->r.x = cpu->r.y = 0;
+  cpu->r.sp = 0xFD;
+
+  memset(cpu->nes->mem.lowmem, 0xFF, 0x800);
+
+  cpu->nes->mem.lowmem[0x08] = 0xF7;
+  cpu->nes->mem.lowmem[0x09] = 0xEF;
+  cpu->nes->mem.lowmem[0x0A] = 0xDF;
+  cpu->nes->mem.lowmem[0x0F] = 0xBF;
+
+}
+
 void cpu_6502_reset(struct _6502* cpu)
 {
+
+  // reset state
+
   cpu->r.sp -= 3;
   cpu->r.flags.i = 1;
 
-  // TODO: put APU into reset state
 }
 
 void cpu_6502_free(struct _6502* cpu)
@@ -61,68 +71,18 @@ void cpu_6502_inspect(struct _6502* cpu)
          );
 }
 
-static u8 fetch_memory(struct _6502* cpu, u16 addr)
-{
-  // Low memory
-  if(addr < 0x2000) {
-    return cpu->mem.lowmem[addr & 0x7FF];
-  }
-
-  // PPU registers
-  if(addr < 0x4000) {
-    return cpu->mem.ppureg[addr & 0x7];
-  }
-
-  // APU registers
-  if(addr < 0x4018) {
-    return cpu->mem.apureg[addr & 0x7];
-  }
-
-  // TODO: SRAM, PRG-RAM, etc.
-
-  else {
-    printf("Warning: accessing 0x%X, which is unknown\n", addr);
-    return ~0;
-  }
-}
-
-static void set_memory(struct _6502* cpu, u16 addr, u8 value)
-{
-
-  // Low memory
-  if(addr < 0x2000) {
-    cpu->mem.lowmem[addr & 0x7FF] = value;
-  }
-
-  // PPU registers
-  else if(addr < 0x4000) {
-    cpu->mem.ppureg[addr & 0x7] = value;
-  }
-
-  // APU registers
-  else if(addr < 0x4018) {
-    cpu->mem.apureg[addr & 0x17] = value;
-  }
-
-  // TODO: SRAM, PRG-RAM, etc.
-
-  else {
-    printf("Warning: writing 0x%X, which is unknown\n", addr);
-  }
-}
-
 // push a value onto the stack
 void cpu_6502_push_stack(struct _6502* cpu, u8 val)
 {
   u16 addr = 0x100 + cpu->r.sp--;
-  set_memory(cpu, addr, val);
+  nes_set_memory(cpu->nes, addr, val);
 }
 
 // pop a value off of the stack
 u8 cpu_6502_pop_stack(struct _6502* cpu)
 {
   u16 addr = 0x100 + cpu->r.sp++;
-  return fetch_memory(cpu, addr);
+  return nes_fetch_memory(cpu->nes, addr);
 }
 
 // 6502 is little endian
@@ -132,7 +92,9 @@ static u16 create_u16(u8 msb, u8 lsb)
 }
 
 // memory at addr                     *addr
-#define MEM(addr) (fetch_memory(cpu, addr))
+#define MEM(addr)          (nes_fetch_memory(cpu->nes, addr))
+#define SETMEM(addr, val)  (nes_set_memory(cpu->nes, addr, val))
+
 #define X         (cpu->r.x)
 #define Y         (cpu->r.x)
 #define A         (cpu->r.a)
@@ -176,9 +138,9 @@ static u16 create_u16(u8 msb, u8 lsb)
 
 #define BRANCH_IF(cond) u8 jmp = ++PC; if(cond) { PC += (jmp > 0x7F ? jmp - 0xFF : jmp); }
 
-void cpu_6502_evaluate(struct _6502 *cpu)
+void cpu_6502_tick(struct _6502 *cpu)
 {
-  u8 op = fetch_memory(cpu, PC);
+  u8 op = MEM(PC);
 
   // temporary values for instructions to use
   u8  val   = 0;
@@ -312,10 +274,10 @@ void cpu_6502_evaluate(struct _6502 *cpu)
     OP(0xCE, DEC, ABS16); //DEC abs
     OP(0xDE, DEC, ABX16); //DEC abx
   DEC: {
-      val = fetch_memory(cpu, val16) - 1;
+      val = MEM(val16) - 1;
       printf("DEC: 0x%X => 0x%X\n", val16, val);
-      set_memory(cpu, val16, val);
-      printf("==> 0x%X\n", fetch_memory(cpu, val16));
+      SETMEM(val16, val);
+      printf("==> 0x%X\n", MEM(val16));
       break;
     }
 
@@ -328,10 +290,10 @@ void cpu_6502_evaluate(struct _6502 *cpu)
     OP(0xEE, INC, ABS16); //INC abs
     OP(0xFE, INC, ABX16); //INC abx
   INC: {
-      val = fetch_memory(cpu, val16) + 1;
+      val = MEM( val16) + 1;
       printf("INC: 0x%X => 0x%X\n", val16, val);
-      set_memory(cpu, val16, val);
-      printf("==> 0x%X\n", fetch_memory(cpu, val16));
+      SETMEM(val16, val);
+      printf("==> 0x%X\n", MEM( val16));
       break;
     }
 
@@ -345,9 +307,9 @@ void cpu_6502_evaluate(struct _6502 *cpu)
     OP(0x0E, ASL, ABS16);     // ASL abs
     OP(0x1E, ASL, ABX16);     // ASL abx
   ASL: {
-      val = fetch_memory(cpu, val16) * 2;
+      val = MEM( val16) * 2;
       printf("ASL: 0x%X => 0x%X\n", val16, val);
-      set_memory(cpu, val16, val);
+      SETMEM( val16, val);
       break;
     }
 
@@ -360,7 +322,7 @@ void cpu_6502_evaluate(struct _6502 *cpu)
   ROL: {
       val = MEM(val16) << 1;
       printf("ROL: 0x%X => 0x%X\n", val16, val);
-      set_memory(cpu, val16, val);
+      SETMEM( val16, val);
       break;
     }
 
@@ -371,9 +333,9 @@ void cpu_6502_evaluate(struct _6502 *cpu)
     OP(0x4E, LSR, ABS16);     // LSR abs
     OP(0x5E, LSR, ABX16);     // LSR abx
   LSR: {
-      val = fetch_memory(cpu, val16) / 2;
+      val = MEM( val16) / 2;
       printf("LSR: 0x%X => 0x%X\n", val16, val);
-      set_memory(cpu, val16, val);
+      SETMEM( val16, val);
       break;
     }
 
@@ -386,7 +348,7 @@ void cpu_6502_evaluate(struct _6502 *cpu)
   ROR: {
       val = MEM(val16) >> 1;
       printf("ROR: 0x%X => 0x%X\n", val16, val);
-      set_memory(cpu, val16, val);
+      SETMEM( val16, val);
       break;
     }
 
@@ -416,7 +378,7 @@ void cpu_6502_evaluate(struct _6502 *cpu)
     OP(0x99, STA, ABY16); // STA aby
   STA: {
       printf("STA: address 0x%X -> 0x%X\n", val16, A);
-      set_memory(cpu, val16, A);
+      SETMEM( val16, A);
       printf("STA: ==> 0x%X\n", MEM(val16));
       break;
     }
@@ -439,7 +401,7 @@ void cpu_6502_evaluate(struct _6502 *cpu)
     OP(0x8E, STX, ABS16); // STX abs
   STX: {
       printf("STX: 0x%X -> 0x%X\n", val16, X);
-      set_memory(cpu, val16, X);
+      SETMEM( val16, X);
       break;
     }
 
@@ -461,7 +423,7 @@ void cpu_6502_evaluate(struct _6502 *cpu)
     OP(0x8C, STY, ABS16); // STY abs
   STY:
     printf("STY: 0x%X -> 0x%X\n", val16, Y);
-    set_memory(cpu, val16, Y);
+    SETMEM(val16, Y);
     break;
 
 

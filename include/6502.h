@@ -5,8 +5,6 @@
 
 #include "def.h"
 
-#include <stdlib.h>
-
 /* proc status / flag register layout
    +7 6 5 4 3 2 1 0+ bit number
    +-+-+-+-+-+-+-+-+
@@ -34,7 +32,7 @@ struct flag {
 
 };
 
-struct registers {
+static struct registers {
   u8 a;                 // accumulator
   u8 x;                 // general purpose / index reg
   u8 y;                 // general purpose / index reg
@@ -43,59 +41,38 @@ struct registers {
   struct flag flags;    // proc status / flag
 };
 
-/*
-  NES' page size is 256 bytes. Total of 256 pages available. (0xFFFF bytes)
-
-  SADDR           SIZE    DESCRIPTION
-  0x0000         0x00FF   Zero page
-  0x0100         0x00FF   Stack
-  0x0200         0x0600   Internal RAM
-  0x0800         0x0800   Mirror of 0x0000-0x07FF
-  0x1000         0x0800   Mirror of 0x0000-0x07FF
-  0x1800         0x0800   Mirror of 0x0000-0x07FF
-  0x2000         0x0008   NES PPU registers
-  0x2008         0x1FF8   Mirrors of 0x2000 every 8 bytes
-  0x4000         0x0020   Input/Output registers
-
-  0x4020         0x1FE0   Expansion ROM
-  0x6000         0x2000   Save RAM
-  0x8000         0x4000   PRG-ROM
-
-  0xFFFA         0x0002   Address of Non Maskable Interrupt (NMI) handler routine
-  0xFFFC         0x0002   Address of Power on reset handler routine
-  0xFFFE         0x0002   Address of Break (BRK instruction) handler routine
-
-*/
-
-// the various memory blocks of significance
-struct cpu_memory {
-  u8 lowmem[0x800]; // 2K internal RAM
-  u8 ppureg[0x008]; // 8B PPU registers
-  u8 apureg[0x018]; // 18B APU registers
-  u8 prgrom[2][0x4000]; // 2 * 16K PRG-ROM segments
+static struct interrupts {
+  bool nmi;
+  bool brk;
+  bool reset;
 };
+
+struct NES;
+struct memory;
 
 struct _6502 {
   struct registers r;
+  struct interrupts intr; // interrupt state
   u32 ticks;
 
-  // important memory areas
-  struct cpu_memory mem;
+  struct NES* nes;   // pointer to parent NES struct
 };
 
-// in 6502.c
-const extern u8 cycles[0x100];
-
 // functions
-struct _6502* cpu_6502_create(void);
-void          cpu_6502_reset(struct _6502* cpu);
-void          cpu_6502_evaluate(struct _6502* cpu);
+struct _6502* cpu_6502_create(struct NES* nes);
 void          cpu_6502_free(struct _6502* cpu);
+void          cpu_6502_powerup(struct _6502* cpu);
+void          cpu_6502_reset(struct _6502* cpu);
+void          cpu_6502_tick(struct _6502* cpu);
 void          cpu_6502_inspect(struct _6502* cpu);
+
 void          cpu_6502_push_stack(struct _6502* cpu, u8 value);
 u8            cpu_6502_pop_stack(struct _6502* cpu);
 
 static struct flag u8_to_flag(u8 u) { return *(struct flag*)&u; }
 static u8 flag_to_u8(struct flag f) { return *(u8*)&f; }
+
+// in 6502.c
+const extern u8 cycles[0x100];
 
 #endif /* _6502_H */

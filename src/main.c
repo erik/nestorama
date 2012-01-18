@@ -3,24 +3,29 @@
 #include <string.h>
 
 #include "6502.h"
+#include "nes.h"
 
 int main(void) {
 
-  struct _6502* cpu = cpu_6502_create();
+  struct NES* nes = nes_create();
 
-  u8 prog[] = {0xA9, 0x55, 0x85, 0x65, 0xE6, 0x65, 0xA5, 0x65, 0x6C, 0x01, 0x0};
-  memcpy(cpu->mem.lowmem, prog, sizeof(prog));
-  cpu->r.pc = 0;
+  u8 prog[] = {0xA9, 0x55,        // LDA imm $55
+               0x85, 0x65,        // STA zp  $65
+               0xE6, 0x65,        // INC zp  $65
+               0xA5, 0x65,        // LDA zp  $65
+               0x6C, 0x01, 0x0};  // JMP ind $0100
 
-  cpu_6502_inspect(cpu);
+  memcpy(nes->mem.lowmem, prog, sizeof(prog));
+  nes->cpu->r.pc = 0;
 
-  cpu_6502_evaluate(cpu);
-  cpu_6502_evaluate(cpu);
-  cpu_6502_evaluate(cpu);
-  cpu_6502_evaluate(cpu);
-  cpu_6502_evaluate(cpu);
+  nes_inspect(nes);
 
-  cpu_6502_inspect(cpu);
+  for(int i = 0; i < 5; ++i) {
+    nes_tick(nes);
+  }
 
+  nes_inspect(nes);
+
+  nes_free(nes);
   return 0;
 }
