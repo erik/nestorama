@@ -2,6 +2,65 @@
 
 #include "nes.h"
 
+#include "6502.h"
+#include "2C02.h"
+#include "apu.h"
+#include "mapper.h"
+
+struct NES* nes_create(void)
+{
+  struct NES* nes = malloc(sizeof(struct NES));
+
+  nes->cpu = cpu_6502_create(nes);
+  nes->ppu = ppu_2C02_create(nes);
+  nes->apu = apu_create(nes);
+  nes->map = mapper_create(nes);
+
+  return nes;
+}
+
+
+void nes_free(struct NES* nes)
+{
+  cpu_6502_free(nes->cpu);
+  ppu_2C02_free(nes->ppu);
+  apu_free(nes->apu);
+  mapper_free(nes->map);
+
+  free(nes);
+}
+
+
+void nes_reset(struct NES* nes)
+{
+  cpu_6502_reset(nes->cpu);
+  ppu_2C02_reset(nes->ppu);
+  apu_reset(nes->apu);
+}
+
+
+void nes_tick(struct NES* nes)
+{
+  // PPU ticks at 3 times CPU rate
+  for(int i = 0; i < 3; ++i)
+    ppu_2C02_tick(nes->ppu);
+
+  // APU ticks at 1 times CPU rate
+  for(int i = 0; i < 1; ++i)
+    apu_tick(nes->apu);
+
+  cpu_6502_tick(nes->cpu);
+}
+
+
+void nes_inspect(struct NES* nes)
+{
+  cpu_6502_inspect(nes->cpu);
+
+  ppu_2C02_inspect(nes->ppu);
+  apu_inspect(nes->apu);
+}
+
 u8 nes_fetch_memory(struct NES* nes, u16 addr)
 {
   // Low memory
@@ -50,57 +109,4 @@ void nes_set_memory(struct NES* nes, u16 addr, u8 value)
   else {
     printf("Warning: writing 0x%X, which is unknown\n", addr);
   }
-}
-
-
-struct NES* nes_create(void)
-{
-  struct NES* nes = malloc(sizeof(struct NES));
-
-  nes->cpu = cpu_6502_create(nes);
-
-  // nes->ppu = ppu_2C02_create();
-  // nes->apu = apu_create();
-
-  return nes;
-}
-
-
-void nes_free(struct NES* nes)
-{
-  cpu_6502_free(nes->cpu);
-
-  // ppu_2C02_free(nes->ppu);
-  // apu_free(nes->apu);
-
-  free(nes);
-}
-
-
-void nes_reset(struct NES* nes)
-{
-  cpu_6502_reset(nes->cpu);
-
-  // ppu_2C02_reset(nes->ppu);
-  // apu_reset(nes->apu);
-}
-
-
-void nes_tick(struct NES* nes)
-{
-  for(int i = 0; i < 3; ++i);
-    // ppu_2C02_tick(nes->ppu);
-  for(int i = 0; i < 1; ++i);
-    // apu_tick(nes->apu);
-
-  cpu_6502_tick(nes->cpu);
-}
-
-
-void nes_inspect(struct NES* nes)
-{
-  cpu_6502_inspect(nes->cpu);
-
-  // ppu_2C02_inspect(nes->ppu);
-  // apu_inspect(nes->apu);
 }

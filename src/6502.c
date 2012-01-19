@@ -88,7 +88,7 @@ u8 cpu_6502_pop_stack(struct _6502* cpu)
 // 6502 is little endian
 static u16 create_u16(u8 msb, u8 lsb)
 {
-  return msb | lsb << 8;
+  return msb | (lsb << 8);
 }
 
 // memory at addr                     *addr

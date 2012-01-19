@@ -5,9 +5,12 @@
 #ifndef _NES_H
 #define _NES_H
 
-#include "6502.h"
-#include "2C02.h"
-#include "apu.h"
+#include "def.h"
+
+struct _6502;
+struct _2C02;
+struct APU;
+struct mapper;
 
 /*
   NES' page size is 256 bytes. Total of 256 pages available. (0xFFFF bytes)
@@ -45,6 +48,8 @@ struct NES {
   struct _6502* cpu;
   struct _2C02* ppu;
   struct APU*   apu;
+
+  struct mapper* map;
 
   struct memory mem;
 };
