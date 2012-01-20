@@ -29,5 +29,5 @@ void apu_tick(struct APU* apu)
 
 void apu_inspect(struct APU* apu)
 {
-  printf("TODO: apu_inspect(struct APU*) %p\n", apu);
+  LOGF("TODO: apu_inspect(struct APU*) %p", apu);
 }

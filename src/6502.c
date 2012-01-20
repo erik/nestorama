@@ -146,8 +146,6 @@ void cpu_6502_tick(struct _6502 *cpu)
   u8  val   = 0;
   u16 val16 = 0;
 
-  printf("OP => %X, PC => %X\n", op, PC);
-
   switch (op) {
     ///// Logical / Arithmetic operations
 

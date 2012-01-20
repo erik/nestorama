@@ -61,6 +61,7 @@ void nes_inspect(struct NES* nes)
   apu_inspect(nes->apu);
 }
 
+// the bitwise ANDing in set_memory and fetch_memory are to compensate for memory mirroring
 u8 nes_fetch_memory(struct NES* nes, u16 addr)
 {
   // Low memory
@@ -70,7 +71,7 @@ u8 nes_fetch_memory(struct NES* nes, u16 addr)
 
   // PPU registers
   if(addr < 0x4000) {
-    return nes->mem.ppureg[addr & 0x7];
+    return ppu_2C02_get_register(nes->ppu, addr & 0x07);
   }
 
   // APU registers
@@ -96,7 +97,7 @@ void nes_set_memory(struct NES* nes, u16 addr, u8 value)
 
   // PPU registers
   else if(addr < 0x4000) {
-    nes->mem.ppureg[addr & 0x7] = value;
+    ppu_2C02_set_register(nes->ppu, addr & 0x07, value);
   }
 
   // APU registers

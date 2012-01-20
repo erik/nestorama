@@ -4,7 +4,7 @@
 
 #include "6502.h"
 #include "nes.h"
-
+#include "2C02.h"
 int main(void) {
 
   struct NES* nes = nes_create();
@@ -23,6 +23,8 @@ int main(void) {
   for(int i = 0; i < 5; ++i) {
     nes_tick(nes);
   }
+
+  nes_set_memory(nes, 0x2002, 0x44);
 
   nes_inspect(nes);
 
