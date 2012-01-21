@@ -11,6 +11,7 @@ struct _6502;
 struct _2C02;
 struct APU;
 struct mapper;
+struct ROM;
 
 /*
   NES' page size is 256 bytes. Total of 256 pages available. (0xFFFF bytes)
@@ -41,7 +42,12 @@ struct memory {
   u8 lowmem[0x800];     // 2K internal RAM   (CPU)
   u8 ppureg[0x008];     // 8B PPU registers  (PPU)
   u8 apureg[0x018];     // 18B APU registers (APU)
-  u8 prgrom[2][0x4000]; // 2 * 16K PRG-ROM segments
+
+  u32 rom_size;
+  u8 *rom;              // pointer to PRG ROM
+
+  u32 vrom_size;
+  u8 *vrom;             // pointer to CHR ROM
 };
 
 struct NES {
@@ -49,6 +55,7 @@ struct NES {
   struct _2C02* ppu;
   struct APU*   apu;
 
+  struct ROM* rom;
   struct mapper* map;
 
   struct memory mem;
@@ -58,9 +65,13 @@ struct NES {
 struct NES*   nes_create(void);
 void          nes_free(struct NES* nes);
 void          nes_reset(struct NES* nes);
+bool          nes_load_rom(struct NES* nes, FILE* fp);
 void          nes_tick(struct NES* nes);
 void          nes_inspect(struct NES* nes);
 u8            nes_fetch_memory(struct NES* nes, u16 addr);
 void          nes_set_memory(struct NES* nes, u16 addr, u8 val);
+void          nes_set_rom(struct NES* nes, u8* rom, u32 size);
+void          nes_set_vrom(struct NES* nes, u8* vrom, u32 size);
+
 
 #endif /* _NES_H */

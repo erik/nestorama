@@ -1,12 +1,13 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
+#include "def.h"
+#include "ines.h"
 #include "6502.h"
-#include "nes.h"
 #include "2C02.h"
-int main(void) {
+#include "nes.h"
 
+static int builtin_test(void)
+{
   struct NES* nes = nes_create();
 
   u8 prog[] = {0xA9, 0x55,        // LDA imm $55
@@ -28,4 +29,26 @@ int main(void) {
 
   nes_free(nes);
   return 0;
+}
+
+int main(int argc, char** argv)
+{
+  if(argc < 2) {
+    LOGF("Running built in test.");
+    return builtin_test();
+  } else {
+    LOGF("Trying to load ROM: %s", argv[1]);
+
+    struct NES* nes = nes_create();
+
+    FILE* fp = fopen(argv[1], "rb");
+    nes_load_rom(nes, fp);
+
+    nes_inspect(nes);
+
+    fclose(fp);
+
+    nes_free(nes);
+    return 0;
+  }
 }
