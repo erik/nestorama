@@ -68,7 +68,7 @@ void cpu_6502_inspect(struct _6502* cpu)
          "  ticks=%d\n"                                 \
          "  registers = {"                              \
          " a=0x%X, x=0x%X, y=0x%x, sp=0x%X, "           \
-         "pc=0x%X, flags (CZIDBUVN)=%s }\n"
+         "pc=0x%X, flags (CZIDBUVN)=0b%s }\n"
          "}\n",
          cpu->ticks,
          cpu->r.a, cpu->r.x, cpu->r.y, cpu->r.sp, cpu->r.pc, flags

@@ -88,16 +88,19 @@ void ppu_2C02_inspect(struct _2C02* ppu)
   // TODO: fix this
 
   printf("2C02 = {\n");
-#define U8_TO_BIN(val) (char[]){ (val >> 0) & 1, (val >> 1) & 1, (val >> 2) & 1, \
-      (val >> 3) & 1, (val >> 4) & 1, (val >> 5) & 1,                   \
-      (val >> 6) & 1, (val >> 7) & 1, 0 }
 
-  printf(" PPUCTRL=%s\t",      U8_TO_BIN((*(u8*)&ppu->r.ctrl)));
-  printf(" PPUMASK=%s\t",      U8_TO_BIN((*(u8*)&ppu->r.mask)));
-  printf(" PPUSTATUS=%s\t",    U8_TO_BIN((*(u8*)&ppu->r.status)));
-  printf(" OAMADDR=0x%X\n",    ppu->r.oam_addr);
-  printf(" OAMDATA=0x%X\t",    ppu->r.oam_data);
-  printf(" PPUSCROLL=0x%X\t",  ppu->r.ppu_scroll);
-  printf(" PPUADDR=0x%X\t",    ppu->r.ppu_addr);
-  printf(" PPUDATA=0x%X\n}\n", ppu->r.ppu_data);
+  // Prints high bits first
+
+#define BIT(v, x)  ((v >> x) & 1) ? '1' : '0'
+#define U8_TO_BIN(v) (char[]){ BIT(v, 7), BIT(v, 6), BIT(v, 5), BIT(v, 4), \
+      BIT(v, 3), BIT(v, 2), BIT(v, 1), BIT(v, 0), 0 }
+
+  printf("  PPUCTRL=0b%s\t",      U8_TO_BIN((*(u8*)&ppu->r.ctrl)));
+  printf("  PPUMASK=0b%s\t",      U8_TO_BIN((*(u8*)&ppu->r.mask)));
+  printf("  PPUSTATUS=0b%s\t",    U8_TO_BIN((*(u8*)&ppu->r.status)));
+  printf("  OAMADDR=0x%X\n",    ppu->r.oam_addr);
+  printf("  OAMDATA=0x%X\t\t",    ppu->r.oam_data);
+  printf("  PPUSCROLL=0x%X\t\t",  ppu->r.ppu_scroll);
+  printf("  PPUADDR=0x%X\t\t",    ppu->r.ppu_addr);
+  printf("  PPUDATA=0x%X\n}\n", ppu->r.ppu_data);
 }
