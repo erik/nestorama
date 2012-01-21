@@ -15,10 +15,12 @@ void ppu_2C02_free(struct _2C02* ppu)
   free(ppu);
 }
 
+// leaving powerup and reset stubs in, but reset / power on state is basically
+// setting each PPU register to 0 or an undefined value
+
 void ppu_2C02_powerup(struct _2C02* ppu)
 {
   (void)ppu;
-  // TODO
 }
 
 void ppu_2C02_reset(struct _2C02* ppu)
@@ -53,7 +55,7 @@ void ppu_2C02_set_register(struct _2C02* ppu, u8 reg, u8 val)
   if(reg == 6) // PPU_ADDR
     ppu->r.ppu_addr = val;
   if(reg == 7) // PPU_DATA
-    ppu->r.ppu_data =val;
+    ppu->r.ppu_data = val;
 }
 
 u8 ppu_2C02_get_register(struct _2C02* ppu, u8 reg)
@@ -82,5 +84,20 @@ u8 ppu_2C02_get_register(struct _2C02* ppu, u8 reg)
 
 void ppu_2C02_inspect(struct _2C02* ppu)
 {
-  LOGF("TODO: ppu_2C02_inspect %p", ppu);
+
+  // TODO: fix this
+
+  printf("2C02 = {\n");
+#define U8_TO_BIN(val) (char[]){ (val >> 0) & 1, (val >> 1) & 1, (val >> 2) & 1, \
+      (val >> 3) & 1, (val >> 4) & 1, (val >> 5) & 1,                   \
+      (val >> 6) & 1, (val >> 7) & 1, 0 }
+
+  printf(" PPUCTRL=%s\t",      U8_TO_BIN((*(u8*)&ppu->r.ctrl)));
+  printf(" PPUMASK=%s\t",      U8_TO_BIN((*(u8*)&ppu->r.mask)));
+  printf(" PPUSTATUS=%s\t",    U8_TO_BIN((*(u8*)&ppu->r.status)));
+  printf(" OAMADDR=0x%X\n",    ppu->r.oam_addr);
+  printf(" OAMDATA=0x%X\t",    ppu->r.oam_data);
+  printf(" PPUSCROLL=0x%X\t",  ppu->r.ppu_scroll);
+  printf(" PPUADDR=0x%X\t",    ppu->r.ppu_addr);
+  printf(" PPUDATA=0x%X\n}\n", ppu->r.ppu_data);
 }

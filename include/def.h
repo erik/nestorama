@@ -15,6 +15,8 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
+// 6502 is little endian
+static u16 create_u16(u8 msb, u8 lsb) { return msb | (lsb << 8); }
 
 #define LOGF(...)                                                    \
   fprintf(stderr, "%s:%d [%s]:\t", __FILE__, __LINE__, __func__);    \

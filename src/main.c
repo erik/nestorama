@@ -20,11 +20,9 @@ int main(void) {
 
   nes_inspect(nes);
 
-  for(int i = 0; i < 5; ++i) {
+  for(int i = 0; i < 10; ++i) {
     nes_tick(nes);
   }
-
-  nes_set_memory(nes, 0x2002, 0x44);
 
   nes_inspect(nes);
 

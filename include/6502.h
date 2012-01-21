@@ -43,8 +43,13 @@ static struct registers {
 
 static struct interrupts {
   bool nmi;
-  bool brk;
   bool reset;
+  bool brk;
+
+  // XXX: these are temporary until NES files are actually loaded into memory
+  u16 nmi_addr;   // 0xFFFA
+  u16 reset_addr; // 0xFFFC
+  u16 brk_addr;   // 0xFFFE
 };
 
 struct NES;

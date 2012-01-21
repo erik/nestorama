@@ -25,7 +25,7 @@ void cpu_6502_powerup(struct _6502* cpu)
 
   cpu->r.flags = u8_to_flag(0x34);
   cpu->r.a = cpu->r.x = cpu->r.y = 0;
-  cpu->r.sp = 0xFD;
+  cpu->r.sp = 0xFF;
 
   memset(cpu->nes->mem.lowmem, 0xFF, 0x800);
 
@@ -34,16 +34,20 @@ void cpu_6502_powerup(struct _6502* cpu)
   cpu->nes->mem.lowmem[0x0A] = 0xDF;
   cpu->nes->mem.lowmem[0x0F] = 0xBF;
 
+  // reset triggered on startup
+  cpu_6502_reset(cpu);
 }
 
 void cpu_6502_reset(struct _6502* cpu)
 {
+  LOGF("Putting CPU into reset state");
 
   // reset state
 
   cpu->r.sp -= 3;
   cpu->r.flags.i = 1;
 
+  cpu->intr.reset = true;
 }
 
 void cpu_6502_free(struct _6502* cpu)
@@ -83,12 +87,6 @@ u8 cpu_6502_pop_stack(struct _6502* cpu)
 {
   u16 addr = 0x100 + cpu->r.sp++;
   return nes_fetch_memory(cpu->nes, addr);
-}
-
-// 6502 is little endian
-static u16 create_u16(u8 msb, u8 lsb)
-{
-  return msb | (lsb << 8);
 }
 
 // memory at addr                     *addr
@@ -140,6 +138,16 @@ static u16 create_u16(u8 msb, u8 lsb)
 
 void cpu_6502_tick(struct _6502 *cpu)
 {
+
+  if(cpu->intr.reset) {
+    cpu->r.pc = cpu->intr.reset_addr;
+
+    LOGF("Jumping to reset address of: 0x%X", cpu->r.pc);
+
+    cpu->intr.reset = false;
+    return;
+  }
+
   u8 op = MEM(PC);
 
   // temporary values for instructions to use
