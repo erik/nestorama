@@ -1,10 +1,13 @@
 #include "2C02.h"
-
 #include "nes.h"
+
+#include <string.h>
 
 struct _2C02* ppu_2C02_create(struct NES* nes)
 {
   struct _2C02* ppu = malloc(sizeof(struct _2C02));
+  memset(ppu, 0, sizeof(struct _2C02));
+
   ppu->nes = nes;
 
   return ppu;
@@ -86,21 +89,23 @@ void ppu_2C02_inspect(struct _2C02* ppu)
 {
 
   // TODO: fix this
-
   printf("2C02 = {\n");
 
   // Prints high bits first
-
 #define BIT(v, x)  ((v >> x) & 1) ? '1' : '0'
-#define U8_TO_BIN(v) (char[]){ BIT(v, 7), BIT(v, 6), BIT(v, 5), BIT(v, 4), \
+#define U8_TO_BIN(v) (char[9]){ BIT(v, 7), BIT(v, 6), BIT(v, 5), BIT(v, 4), \
       BIT(v, 3), BIT(v, 2), BIT(v, 1), BIT(v, 0), 0 }
 
-  printf("  PPUCTRL=0b%s\t",      U8_TO_BIN((*(u8*)&ppu->r.ctrl)));
-  printf("  PPUMASK=0b%s\t",      U8_TO_BIN((*(u8*)&ppu->r.mask)));
-  printf("  PPUSTATUS=0b%s\t",    U8_TO_BIN((*(u8*)&ppu->r.status)));
-  printf("  OAMADDR=0x%X\n",    ppu->r.oam_addr);
-  printf("  OAMDATA=0x%X\t\t",    ppu->r.oam_data);
-  printf("  PPUSCROLL=0x%X\t\t",  ppu->r.ppu_scroll);
-  printf("  PPUADDR=0x%X\t\t",    ppu->r.ppu_addr);
+  u8 ctrl = *(u8*)&ppu->r.ctrl,
+    mask = *(u8*)&ppu->r.mask,
+    status = *(u8*)&ppu->r.status;
+
+  printf("  PPUCTRL=0b%s\t", U8_TO_BIN(ctrl));
+  printf("  PPUMASK=0b%s\t", U8_TO_BIN(mask));
+  printf("  PPUSTATUS=0b%s\t", U8_TO_BIN(status));
+  printf("  OAMADDR=0x%X\n", ppu->r.oam_addr);
+  printf("  OAMDATA=0x%X\t\t", ppu->r.oam_data);
+  printf("  PPUSCROLL=0x%X\t\t", ppu->r.ppu_scroll);
+  printf("  PPUADDR=0x%X\t\t", ppu->r.ppu_addr);
   printf("  PPUDATA=0x%X\n}\n", ppu->r.ppu_data);
 }

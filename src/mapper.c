@@ -1,9 +1,13 @@
 #include "mapper.h"
 
-struct mapper* mapper_create(struct NES* nes)
+#include <string.h>
+
+struct mapper* mapper_create(struct ROM* rom)
 {
   struct mapper* map = malloc(sizeof(struct mapper));
-  map->nes = nes;
+  memset(map, 0, sizeof(struct mapper));
+
+  map->rom = rom;
 
   return map;
 }

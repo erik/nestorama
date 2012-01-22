@@ -6,7 +6,7 @@
 #include "2C02.h"
 #include "apu.h"
 #include "mapper.h"
-#include "ines.h"
+#include "rom.h"
 
 struct NES* nes_create(void)
 {
@@ -15,7 +15,6 @@ struct NES* nes_create(void)
   nes->cpu = cpu_6502_create(nes);
   nes->ppu = ppu_2C02_create(nes);
   nes->apu = apu_create(nes);
-  nes->map = mapper_create(nes);
 
   nes->mem.rom = malloc(0);
   nes->mem.vrom = malloc(0);
@@ -33,12 +32,11 @@ void nes_free(struct NES* nes)
   cpu_6502_free(nes->cpu);
   ppu_2C02_free(nes->ppu);
   apu_free(nes->apu);
-  mapper_free(nes->map);
 
   free(nes->mem.rom);
   free(nes->mem.vrom);
 
-  if(nes->rom) free(nes->rom);
+  if(nes->rom) rom_free(nes->rom);
 
   free(nes);
 }
@@ -56,7 +54,7 @@ bool nes_load_rom(struct NES* nes, FILE* fp)
   // free any previous ROM
   if(nes->rom) free(nes->rom);
 
-  nes->rom = ines_load_rom(fp, nes);
+  nes->rom = rom_load_file(fp, nes);
 
   if(!nes->rom) {
     LOGF("ROM load failed");
@@ -87,7 +85,7 @@ void nes_inspect(struct NES* nes)
   ppu_2C02_inspect(nes->ppu);
   apu_inspect(nes->apu);
 
-  if(nes->rom) ines_rom_inspect(nes->rom);
+  if(nes->rom) rom_inspect(nes->rom);
 }
 
 // the bitwise ANDing in set_memory and fetch_memory are to compensate for memory mirroring

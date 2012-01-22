@@ -8,6 +8,7 @@
 #include "def.h"
 
 struct NES;
+struct mapper;
 
 /*
   Header (16 bytes)
@@ -29,7 +30,7 @@ struct NES;
   - 11-15: Zero filled
 */
 
-struct ROM_header {
+struct iNES_ROM_header {
   u8 prg_rom_count; // blocks of PRG ROM (16KB units)
   u8 chr_rom_count; // blocks of CHR ROM (8KB units) (0 value means ROM uses CHR RAM)
   u8 flags6;        //
@@ -41,13 +42,17 @@ struct ROM_header {
   // remainder of 16 bit header is left zero filled
 };
 
-struct ROM {
-  struct ROM_header header;
+struct iNES_ROM {
   u8 mapper_num;
+
+  struct iNES_ROM_header header;
 };
 
+static u8 INES_HEADER[4] = { 0x4E, 0x45, 0x53, 0x1A };
+
 // functions
-struct ROM* ines_load_rom(FILE* f, struct NES* nes);
-void        ines_rom_inspect(struct ROM* rom);
+struct iNES_ROM* ines_rom_load_file(FILE* f, struct NES* nes);
+void             ines_rom_free(struct iNES_ROM* rom);
+void             ines_rom_inspect(struct iNES_ROM* rom);
 
 #endif /* _INES_H */

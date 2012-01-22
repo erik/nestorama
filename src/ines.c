@@ -1,24 +1,17 @@
 #include "ines.h"
 #include "nes.h"
+#include "mapper.h"
 
 #include <string.h>
 
-static u8 HEADER[4] = { 0x4E, 0x45, 0x53, 0x1A };
-
-struct ROM* ines_load_rom(FILE* fp, struct NES* nes)
+struct iNES_ROM* ines_rom_load_file(FILE* fp, struct NES* nes)
 {
-  struct ROM* rom = malloc(sizeof(struct ROM));
-
-  fseek(fp, 0, SEEK_END);
-  long fsize = ftell(fp);
-  rewind(fp);
-
-  LOGF("Loading ROM: %ld bytes", fsize);
+  struct iNES_ROM* rom = malloc(sizeof(struct iNES_ROM));
 
   char hdr[16] = {0};
   long hdrsz = fread(hdr, 1, 16, fp);
 
-  if(hdrsz != 16 || memcmp(hdr, HEADER, 4)) {
+  if(hdrsz != 16 || memcmp(hdr, INES_HEADER, 4)) {
     LOGF("Given magic 0x%X 0x%X 0x%X 0x%X, expected 0x4E 0x45 0x53 0x1A, is this an iNES ROM?",
          hdr[0], hdr[1], hdr[2], hdr[3]);
     goto fail;
@@ -54,7 +47,12 @@ struct ROM* ines_load_rom(FILE* fp, struct NES* nes)
   return NULL;
 }
 
-void ines_rom_inspect(struct ROM* rom)
+void ines_rom_free(struct iNES_ROM* rom)
+{
+  free(rom);
+}
+
+void ines_rom_inspect(struct iNES_ROM* rom)
 {
   // TODO: rest of header and information
   printf("ROM = { PRG ROM=0x%X, CHR ROM=0x%X, PRG RAM=0x%X, format=%s mapper=%d}\n",

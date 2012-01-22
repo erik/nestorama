@@ -7,16 +7,18 @@
 
 #include "def.h"
 
-struct NES;
+struct ROM;
 
 struct mapper {
   u8 num;
+  u8* rom_banks[8];
+  u8* vrom_banks[8];
 
-  struct NES* nes;
+  struct ROM* rom;
 };
 
 // functions
-struct mapper* mapper_create(struct NES* nes);
+struct mapper* mapper_create(struct ROM* rom);
 void           mapper_free(struct mapper* map);
 
 u8             mapper_fetch(struct mapper* map, u16 addr);

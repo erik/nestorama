@@ -10,6 +10,7 @@
 struct _6502* cpu_6502_create(struct NES* nes)
 {
   struct _6502* cpu = malloc(sizeof(struct _6502));
+  memset(cpu, 0, sizeof(struct _6502));
   cpu->nes = nes;
 
   cpu_6502_powerup(cpu);

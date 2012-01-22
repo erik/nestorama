@@ -27,7 +27,7 @@ struct ROM;
   0x2008         0x1FF8   Mirrors of 0x2000 every 8 bytes
   0x4000         0x0020   Input/Output registers
 
-  0x4020         0x1FE0   Expansion ROM
+  0x4020         0x1FE0   Expansion ROM (used for e.g. MMC5)
   0x6000         0x2000   Save RAM
   0x8000         0x4000   PRG-ROM
 
@@ -40,8 +40,9 @@ struct ROM;
 // the various memory blocks of significance
 struct memory {
   u8 lowmem[0x800];     // 2K internal RAM   (CPU)
-  u8 ppureg[0x008];     // 8B PPU registers  (PPU)
   u8 apureg[0x018];     // 18B APU registers (APU)
+
+  u8 sram[0x2000];      // 8K PRG RAM (Save RAM)
 
   u32 rom_size;
   u8 *rom;              // pointer to PRG ROM
@@ -54,9 +55,7 @@ struct NES {
   struct _6502* cpu;
   struct _2C02* ppu;
   struct APU*   apu;
-
   struct ROM* rom;
-  struct mapper* map;
 
   struct memory mem;
 };
