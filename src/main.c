@@ -19,8 +19,6 @@ static int builtin_test(void)
   memcpy(nes->mem.lowmem, prog, sizeof(prog));
   nes->cpu->r.pc = 0;
 
-  nes_inspect(nes);
-
   for(int i = 0; i < 6; ++i) {
     nes_tick(nes);
   }

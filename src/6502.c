@@ -25,7 +25,7 @@ void cpu_6502_powerup(struct _6502* cpu)
 
   cpu->r.flags = u8_to_flag(0x34);
   cpu->r.a = cpu->r.x = cpu->r.y = 0;
-  cpu->r.sp = 0xFF;
+  cpu->r.sp = 0x00;
 
   memset(cpu->nes->mem.lowmem, 0xFF, 0x800);
 
@@ -44,6 +44,9 @@ void cpu_6502_reset(struct _6502* cpu)
 
   // reset state
 
+  u8 f = flag_to_u8(cpu->r.flags) | 0x04;
+
+  cpu->r.flags = u8_to_flag(f);
   cpu->r.sp -= 3;
   cpu->r.flags.i = 1;
 
@@ -106,27 +109,30 @@ u8 cpu_6502_pop_stack(struct _6502* cpu)
 // value of memory at program counter *pc
 #define PCVAL     (MEM(++cpu->r.pc))
 
+// these procedures are for ops that manipulate 16 bit values (addresses)
+// I do some terrifying things here, please forgive me.
+#define ZP16  addr = PCVAL
+#define ZPX16 addr = PCVAL + cpu->r.x
+#define ZPY16 addr = PCVAL + cpu->r.y
+#define IZX16 addr = (PC += 1, create_u16(MEM(MEM(PC - 1) + cpu->r.x) + 1, \
+                                           MEM(MEM(PC - 1) + cpu->r.x) ))
+#define IZY16 addr = (PC += 1, create_u16(MEM(MEM(PC - 1) + cpu->r.y) + 1, \
+                                           MEM(MEM(PC - 1) + cpu->r.y) ))
+#define ABS16 addr = (PC += 2, create_u16(MEM(PC - 2), MEM(PC - 1)))
+#define ABX16 addr = (PC += 2, create_u16(MEM(PC - 2), MEM(PC - 1)) + cpu->r.x)
+#define ABY16 addr = (PC += 2, create_u16(MEM(PC - 2), MEM(PC - 1)) + cpu->r.y)
+
 // these procedures are common to every opcode
 #define IMP /* nothing */
-#define IMM val = PCVAL;
-#define ZP  val = MEM(PCVAL);
-#define ZPX val = MEM(PCVAL + X);
-#define ZPY val = MEM(PCVAL + Y);
-#define IZX val = MEM(MEM(PCVAL + X));
-#define IZY val = MEM(MEM(PCVAL)) + Y;
-#define ABS val = MEM(create_u16(MEM(PC + 1), MEM(PC + 2))); PC += 2;
-#define ABX /* TODO */
-#define ABY /* TODO */
-
-// these procedures are for ops that manipulate 16 bit values (addresses)
-#define ZP16  val16 = PCVAL;
-#define ZPX16 val16 = PCVAL + cpu->r.x;
-#define ZPY16 val16 = PCVAL + cpu->r.y
-#define IZX16 /* TODO */
-#define IZY16 /* TODO */
-#define ABS16 val16 = create_u16(MEM(PC + 1), MEM(PC + 2)); PC += 2;
-#define ABX16 /* TODO */
-#define ABY16 /* TODO */
+#define IMM val = PCVAL
+#define ZP  val = MEM(ZP16)
+#define ZPX val = MEM(ZPX16)
+#define ZPY val = MEM(ZPY16)
+#define IZX val = MEM(IZX16)
+#define IZY val = MEM(IZY16)
+#define ABS val = MEM(ABS16)
+#define ABX val = MEM(ABX16)
+#define ABY val = MEM(ABY16)
 
 // save some keystrokes
 #define OP(num, fam, type) case num: { type; goto fam; break; }
@@ -150,9 +156,8 @@ void cpu_6502_tick(struct _6502 *cpu)
 
   u8 op = MEM(PC);
 
-  // temporary values for instructions to use
-  u8  val   = 0;
-  u16 val16 = 0;
+  u8  val  = 0; // temporary value for instructions to use
+  u16 addr = 0; // temporary 16 bit value (for addresses)
 
   switch (op) {
     ///// Logical / Arithmetic operations
@@ -275,15 +280,15 @@ void cpu_6502_tick(struct _6502 *cpu)
     }
 
     // DEC
-    OP(0xC6, DEC, ZP16);  //DEC zp
-    OP(0xD6, DEC, ZPX16); //DEC zpx
-    OP(0xCE, DEC, ABS16); //DEC abs
-    OP(0xDE, DEC, ABX16); //DEC abx
+    OP(0xC6, DEC, ZP);  //DEC zp
+    OP(0xD6, DEC, ZPX); //DEC zpx
+    OP(0xCE, DEC, ABS); //DEC abs
+    OP(0xDE, DEC, ABX); //DEC abx
   DEC: {
-      val = MEM(val16) - 1;
-      printf("DEC: 0x%X => 0x%X\n", val16, val);
-      SETMEM(val16, val);
-      printf("==> 0x%X\n", MEM(val16));
+      val -= 1;
+      printf("DEC: 0x%X => 0x%X\n", addr, val);
+      SETMEM(addr, val);
+      printf("==> 0x%X\n", MEM(addr));
       break;
     }
 
@@ -291,15 +296,15 @@ void cpu_6502_tick(struct _6502 *cpu)
     IMP_OP(0x88, Y -= 1); // DEY imp
 
     // INC
-    OP(0xE6, INC, ZP16);  //INC zp
-    OP(0xF6, INC, ZPX16); //INC zpx
-    OP(0xEE, INC, ABS16); //INC abs
-    OP(0xFE, INC, ABX16); //INC abx
+    OP(0xE6, INC, ZP);  //INC zp
+    OP(0xF6, INC, ZPX); //INC zpx
+    OP(0xEE, INC, ABS); //INC abs
+    OP(0xFE, INC, ABX); //INC abx
   INC: {
-      val = MEM( val16) + 1;
-      printf("INC: 0x%X => 0x%X\n", val16, val);
-      SETMEM(val16, val);
-      printf("==> 0x%X\n", MEM( val16));
+      val += 1;
+      printf("INC: 0x%X => 0x%X\n", addr, val);
+      SETMEM(addr, val);
+      printf("==> 0x%X\n", MEM(addr));
       break;
     }
 
@@ -307,54 +312,58 @@ void cpu_6502_tick(struct _6502 *cpu)
     IMP_OP(0xC8, Y += 1); // INY imp
 
     // ASL
-    OP(0x0A, ASL, val16 = A); // ASL imp
-    OP(0x06, ASL, ZP16);      // ASL zp
-    OP(0x16, ASL, ZPX16);     // ASL zpx
-    OP(0x0E, ASL, ABS16);     // ASL abs
-    OP(0x1E, ASL, ABX16);     // ASL abx
+    IMP_OP(0x0A, A *= 2);    // ASL imp
+
+    OP(0x06, ASL, ZP);       // ASL zp
+    OP(0x16, ASL, ZPX);      // ASL zpx
+    OP(0x0E, ASL, ABS);      // ASL abs
+    OP(0x1E, ASL, ABX);      // ASL abx
   ASL: {
-      val = MEM( val16) * 2;
-      printf("ASL: 0x%X => 0x%X\n", val16, val);
-      SETMEM( val16, val);
+      val *= 2;
+      printf("ASL: 0x%X => 0x%X\n", addr, val);
+      SETMEM(addr, val);
       break;
     }
 
     // ROL
-    OP(0x2A, ROL, val16 = A); // ROL imp
-    OP(0x26, ROL, ZP16);      // ROL zp
-    OP(0x36, ROL, ZPX16);     // ROL zpx
-    OP(0x2E, ROL, ABS16);     // ROL abs
-    OP(0x3E, ROL, ABX16);     // ROL abx
+    IMP_OP(0x2A, A <<= 1);  // ROL imp
+
+    OP(0x26, ROL, ZP);      // ROL zp
+    OP(0x36, ROL, ZPX);     // ROL zpx
+    OP(0x2E, ROL, ABS);     // ROL abs
+    OP(0x3E, ROL, ABX);     // ROL abx
   ROL: {
-      val = MEM(val16) << 1;
-      printf("ROL: 0x%X => 0x%X\n", val16, val);
-      SETMEM( val16, val);
+      val <<= 1;
+      printf("ROL: 0x%X => 0x%X\n", addr, val);
+      SETMEM(addr, val);
       break;
     }
 
     // LSR
-    OP(0x4A, LSR, val16 = A); // LSR imp
-    OP(0x46, LSR, ZP16);      // LSR zp
-    OP(0x56, LSR, ZPX16);     // LSR zpx
-    OP(0x4E, LSR, ABS16);     // LSR abs
-    OP(0x5E, LSR, ABX16);     // LSR abx
+    IMP_OP(0x4A, A /= 2);  // LSR imp
+
+    OP(0x46, LSR, ZP);      // LSR zp
+    OP(0x56, LSR, ZPX);     // LSR zpx
+    OP(0x4E, LSR, ABS);     // LSR abs
+    OP(0x5E, LSR, ABX);     // LSR abx
   LSR: {
-      val = MEM( val16) / 2;
-      printf("LSR: 0x%X => 0x%X\n", val16, val);
-      SETMEM( val16, val);
+      val /= 2;
+      printf("LSR: 0x%X => 0x%X\n", addr, val);
+      SETMEM( addr, val);
       break;
     }
 
     // ROR
-    OP(0x6A, ROR, val16 = A); // ROR imp
-    OP(0x66, ROR, ZP16);      // ROR zp
-    OP(0x76, ROR, ZPX16);     // ROR zpx
-    OP(0x6E, ROR, ABS16);     // ROR abs
-    OP(0x7E, ROR, ABX16);     // ROR abx
+    IMP_OP(0x6A, A >>= 1);  // ROR imp
+
+    OP(0x66, ROR, ZP);      // ROR zp
+    OP(0x76, ROR, ZPX);     // ROR zpx
+    OP(0x6E, ROR, ABS);     // ROR abs
+    OP(0x7E, ROR, ABX);     // ROR abx
   ROR: {
-      val = MEM(val16) >> 1;
-      printf("ROR: 0x%X => 0x%X\n", val16, val);
-      SETMEM( val16, val);
+      val >>= 1;
+      printf("ROR: 0x%X => 0x%X\n", addr, val);
+      SETMEM( addr, val);
       break;
     }
 
@@ -375,17 +384,17 @@ void cpu_6502_tick(struct _6502 *cpu)
     break;
 
     // STA
-    OP(0x85, STA, ZP16);  // STA zp
-    OP(0x95, STA, ZPX16); // STA zpx
-    OP(0x81, STA, IZX16); // STA izx
-    OP(0x91, STA, IZY16); // STA izy
-    OP(0x8D, STA, ABS16); // STA abs
-    OP(0x9D, STA, ABX16); // STA abx
-    OP(0x99, STA, ABY16); // STA aby
+    OP(0x85, STA, ZP);  // STA zp
+    OP(0x95, STA, ZPX); // STA zpx
+    OP(0x81, STA, IZX); // STA izx
+    OP(0x91, STA, IZY); // STA izy
+    OP(0x8D, STA, ABS); // STA abs
+    OP(0x9D, STA, ABX); // STA abx
+    OP(0x99, STA, ABY); // STA aby
   STA: {
-      printf("STA: address 0x%X -> 0x%X\n", val16, A);
-      SETMEM( val16, A);
-      printf("STA: ==> 0x%X\n", MEM(val16));
+      printf("STA: address 0x%X -> 0x%X\n", addr, A);
+      SETMEM(addr, A);
+      printf("STA: ==> 0x%X\n", MEM(addr));
       break;
     }
 
@@ -402,12 +411,12 @@ void cpu_6502_tick(struct _6502 *cpu)
     }
 
     // STX
-    OP(0x86, STX, ZP16);  // STX zp
-    OP(0x96, STX, ZPY16); // STX zpy
-    OP(0x8E, STX, ABS16); // STX abs
+    OP(0x86, STX, ZP);  // STX zp
+    OP(0x96, STX, ZPY); // STX zpy
+    OP(0x8E, STX, ABS); // STX abs
   STX: {
-      printf("STX: 0x%X -> 0x%X\n", val16, X);
-      SETMEM( val16, X);
+      printf("STX: 0x%X -> 0x%X\n", addr, X);
+      SETMEM(addr, X);
       break;
     }
 
@@ -424,12 +433,12 @@ void cpu_6502_tick(struct _6502 *cpu)
 
 
     // STY
-    OP(0x84, STY, ZP16);  // STY zp
-    OP(0x94, STY, ZPX16); // STY zpx
-    OP(0x8C, STY, ABS16); // STY abs
+    OP(0x84, STY, ZP);  // STY zp
+    OP(0x94, STY, ZPX); // STY zpx
+    OP(0x8C, STY, ABS); // STY abs
   STY:
-    printf("STY: 0x%X -> 0x%X\n", val16, Y);
-    SETMEM(val16, Y);
+    printf("STY: 0x%X -> 0x%X\n", addr, Y);
+    SETMEM(addr, Y);
     break;
 
 
@@ -468,16 +477,16 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0x20, JSR, ABS16);              // JSR abs
   JSR: {
       PUSH(PC);
-      PC = val16 - 1;
+      PC = addr - 1;
       break;
     }
 
     IMP_OP(0x60, PC = POP - 1);        // RTS imp
 
-    OP(0x4C, JMP, ABS16);              // JMP abs
-    OP(0x6C, JMP, val16 = MEM(PCVAL)); // JMP ind
+    OP(0x4C, JMP, ABS);               // JMP abs
+    OP(0x6C, JMP, addr = MEM(PCVAL)); // JMP ind
   JMP:
-    printf("JMP: PC = 0x%X\n", PC = val16 - 1);
+    printf("JMP: PC = 0x%X\n", PC = addr - 1);
     break;
 
     OP(0x24, BIT, ZP);        // BIT zp

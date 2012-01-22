@@ -87,9 +87,7 @@ void nes_inspect(struct NES* nes)
   ppu_2C02_inspect(nes->ppu);
   apu_inspect(nes->apu);
 
-  if(nes->rom) {
-    ines_rom_inspect(nes->rom);
-  }
+  if(nes->rom) ines_rom_inspect(nes->rom);
 }
 
 // the bitwise ANDing in set_memory and fetch_memory are to compensate for memory mirroring
