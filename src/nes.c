@@ -106,11 +106,9 @@ u8 nes_fetch_memory(struct NES* nes, u16 addr)
     return nes->mem.apureg[addr & 0x7];
   }
 
-  // TODO: SRAM, PRG-RAM, etc.
-
+  // ROM memory
   else {
-    printf("Warning: accessing 0x%X, which is unknown\n", addr);
-    return ~0;
+    return rom_fetch_memory(nes->rom, addr);
   }
 }
 
@@ -132,10 +130,9 @@ void nes_set_memory(struct NES* nes, u16 addr, u8 value)
     nes->mem.apureg[addr & 0x17] = value;
   }
 
-  // TODO: SRAM, PRG-RAM, etc.
-
+  // ROM memory
   else {
-    printf("Warning: writing 0x%X, which is unknown\n", addr);
+    rom_set_memory(nes->rom, addr, value);
   }
 }
 

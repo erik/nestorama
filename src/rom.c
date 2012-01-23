@@ -10,6 +10,8 @@ struct ROM* rom_load_file(FILE* fp, struct NES* nes)
   struct ROM* rom = malloc(sizeof(struct ROM));
   memset(rom, 0, sizeof(struct ROM));
 
+  rom->nes = nes;
+
   fseek(fp, 0, SEEK_END);
   long fsize = ftell(fp);
   rewind(fp);
@@ -25,11 +27,7 @@ struct ROM* rom_load_file(FILE* fp, struct NES* nes)
 
     rewind(fp);
 
-    struct iNES_ROM* ines = ines_rom_load_file(fp, nes);
-    if(!ines) goto fail;
-
-    rom->type = INES;
-    rom->rom.ines = ines;
+    if(!ines_rom_load_file(fp, rom)) goto fail;
 
   } else {
     LOGF("Can't determine this ROM's file type");
@@ -50,28 +48,26 @@ struct ROM* rom_load_file(FILE* fp, struct NES* nes)
 void rom_free(struct ROM* rom)
 {
   free(rom->map);
-
-  switch(rom->type) {
-  case INES:
-    ines_rom_free(rom->rom.ines);
-    break;
-  default:
-    LOGF("That type isn't supported yet");
-    break;
-  }
-
   free(rom);
 }
 
 
 void rom_inspect(struct ROM* rom)
 {
-  switch(rom->type) {
-  case INES:
-    ines_rom_inspect(rom->rom.ines);
-    break;
-  default:
-    LOGF("That type isn't supported yet");
-    break;
-  }
+  printf("ROM = { PRG ROM=0x%X, CHR ROM=0x%X, PRG RAM=%s, format=%s mapper=%d}\n",
+         rom->hdr.prg_rom_count * 0x4000, rom->hdr.chr_rom_count * 0x2000,
+         rom->hdr.has_prg_ram ? "YES" : "NO", rom->hdr.format == NTSC ? "NTSC" : "PAL",
+         rom->hdr.type);
+
+}
+
+
+u8 rom_fetch_memory(struct ROM* rom, u16 addr)
+{
+  return mapper_fetch_memory(rom->map, addr);
+}
+
+void rom_set_memory(struct ROM* rom, u16 addr, u8 val)
+{
+  mapper_set_memory(rom->map, addr, val);
 }

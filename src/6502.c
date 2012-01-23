@@ -15,8 +15,6 @@ struct _6502* cpu_6502_create(struct NES* nes)
 
   cpu_6502_powerup(cpu);
 
-  // TODO: initiate high memory (PPU regs, etc.) to proper power on state
-
   return cpu;
 }
 
