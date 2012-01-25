@@ -54,11 +54,10 @@ void rom_free(struct ROM* rom)
 
 void rom_inspect(struct ROM* rom)
 {
-  printf("ROM = { PRG ROM=0x%X, CHR ROM=0x%X, PRG RAM=%s, format=%s mapper=%d}\n",
+  printf("ROM = { PRG ROM=0x%X, CHR ROM=0x%X, PRG RAM=%s, format=%s mapper=%d }\n",
          rom->hdr.prg_rom_count * 0x4000, rom->hdr.chr_rom_count * 0x2000,
          rom->hdr.has_prg_ram ? "YES" : "NO", rom->hdr.format == NTSC ? "NTSC" : "PAL",
-         rom->hdr.type);
-
+         rom->map->num);
 }
 
 

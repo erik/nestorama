@@ -28,7 +28,8 @@ static int builtin_test(void)
   nes_free(nes);
   return 0;
 }
-
+#include "mapper.h"
+#include "rom.h"
 int main(int argc, char** argv)
 {
   if(argc < 2) {
