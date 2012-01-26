@@ -5,10 +5,13 @@
 #include "6502.h"
 #include "2C02.h"
 #include "nes.h"
+#include "mapper.h"
+#include "rom.h"
 
 static int builtin_test(void)
 {
   struct NES* nes = nes_create();
+  nes_powerup(nes);
 
   u8 prog[] = {0xA9, 0x55,        // LDA imm $55
                0x85, 0x65,        // STA zp  $65
@@ -28,8 +31,7 @@ static int builtin_test(void)
   nes_free(nes);
   return 0;
 }
-#include "mapper.h"
-#include "rom.h"
+
 int main(int argc, char** argv)
 {
   if(argc < 2) {
@@ -42,6 +44,7 @@ int main(int argc, char** argv)
 
     FILE* fp = fopen(argv[1], "rb");
     nes_load_rom(nes, fp);
+    nes_powerup(nes);
 
     nes_inspect(nes);
 

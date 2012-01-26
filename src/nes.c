@@ -41,6 +41,12 @@ void nes_free(struct NES* nes)
   free(nes);
 }
 
+void nes_powerup(struct NES* nes)
+{
+  cpu_6502_powerup(nes->cpu);
+  ppu_2C02_powerup(nes->ppu);
+  apu_powerup(nes->apu);
+}
 
 void nes_reset(struct NES* nes)
 {

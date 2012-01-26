@@ -50,6 +50,7 @@ static struct interrupts {
   u16 nmi_addr;   // 0xFFFA
   u16 reset_addr; // 0xFFFC
   u16 brk_addr;   // 0xFFFE
+
 };
 
 struct NES;

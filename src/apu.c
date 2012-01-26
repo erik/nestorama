@@ -21,6 +21,13 @@ void apu_reset(struct APU* apu)
   // TODO:
 }
 
+void apu_powerup(struct APU* apu)
+{
+  (void)apu;
+  // TODO:
+}
+
+
 void apu_tick(struct APU* apu)
 {
   (void)apu;

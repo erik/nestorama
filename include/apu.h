@@ -22,7 +22,9 @@ struct APU {
 // functions
 struct APU*   apu_create(struct NES* nes);
 void          apu_free(struct APU* apu);
+void          apu_powerup(struct APU* apu);
 void          apu_reset(struct APU* apu);
+
 void          apu_tick(struct APU* apu);
 void          apu_inspect(struct APU* apu);
 

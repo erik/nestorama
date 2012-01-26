@@ -63,7 +63,9 @@ struct NES {
 // functions
 struct NES*   nes_create(void);
 void          nes_free(struct NES* nes);
+void          nes_powerup(struct NES* nes);
 void          nes_reset(struct NES* nes);
+
 bool          nes_load_rom(struct NES* nes, FILE* fp);
 void          nes_tick(struct NES* nes);
 void          nes_inspect(struct NES* nes);

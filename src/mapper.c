@@ -24,9 +24,17 @@ void mapper_free(struct mapper* map)
 
 void mapper_init_banks(struct mapper* map)
 {
-  // XXX: this is definitely wrong.
-  for(u8 v = 0; v < 4; ++v)
-    mapper_set_rom_bank(map, v == 3 ? -1 : 0, v * 0x4000, 0x4000);
+  switch(map->num) {
+  case MMC1:
+    // bits 2,3 of 0x8000 are set
+    mapper_set_memory(map, 0x8000, (1 << 1) | (1 << 2));
+    break;
+  case AXROM:
+    // unknown(?) power up state
+    break;
+  default:
+    LOGF("TODO: Write init routine for mapper %d", map->num);
+  }
 }
 
 void mapper_set_rom_bank(struct mapper* map, u8 bank_num, u16 addr, u16 size)
@@ -74,6 +82,5 @@ void mapper_set_memory(struct mapper* map, u16 addr, u8 val)
 
   default:
     LOGF("XXX: Tried to access memory location 0x%X, which doesn't seem to be mapped", addr);
-
   }
 }

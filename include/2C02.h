@@ -103,6 +103,7 @@ struct _2C02* ppu_2C02_create(struct NES* nes);
 void          ppu_2C02_free(struct _2C02* ppu);
 void          ppu_2C02_powerup(struct _2C02* ppu);
 void          ppu_2C02_reset(struct _2C02* ppu);
+
 void          ppu_2C02_tick(struct _2C02* ppu);
 void          ppu_2C02_set_register(struct _2C02* ppu, u8 reg, u8 val);
 u8            ppu_2C02_get_register(struct _2C02* ppu, u8 reg);
