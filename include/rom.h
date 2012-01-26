@@ -4,6 +4,7 @@
 #define _ROM_H
 
 #include "def.h"
+#include "mapper.h"
 
 struct NES;
 struct mapper;
@@ -15,6 +16,7 @@ enum rom_format { NTSC, PAL };
 struct rom_header {
   enum rom_type type;
   enum rom_format format;
+  enum rom_mapper mapper;
 
   u8 prg_rom_count; // blocks of PRG ROM (16KB units)
   u8 chr_rom_count; // blocks of CHR ROM (8KB units)

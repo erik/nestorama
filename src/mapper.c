@@ -10,6 +10,7 @@ struct mapper* mapper_create(struct ROM* rom)
   memset(map, 0, sizeof(struct mapper));
 
   map->rom = rom;
+  map->num = rom->hdr.mapper;;
 
   mapper_init_banks(map);
 
@@ -23,7 +24,7 @@ void mapper_free(struct mapper* map)
 
 void mapper_init_banks(struct mapper* map)
 {
-  // XXX: this is probably wrong here.
+  // XXX: this is definitely wrong.
   for(u8 v = 0; v < 4; ++v)
     mapper_set_rom_bank(map, v == 3 ? -1 : 0, v * 0x4000, 0x4000);
 }
@@ -66,6 +67,8 @@ void mapper_set_memory(struct mapper* map, u16 addr, u8 val)
   case AXROM: {
     // (val & 7) to grap lowest 3 bits (representing bank index)
     mapper_set_rom_bank(map, val & 0x7, 0x8000, 0x8000);
+
+    // (val >> 4) & 1 to grab bit 4 (vrom)
     break;
   }
 

@@ -26,7 +26,7 @@ struct ROM* ines_rom_load_file(FILE* fp, struct ROM* rom)
   header.prg_ram_count = hdr[8];
   header.format        = hdr[9];
 
-  header.mapper_num  = header.flags7 | (header.flags6 >> 4);
+  u8 mapper_num  = header.flags7 | (header.flags6 >> 4);
 
   u32 rom_size = header.prg_rom_count * 0x4000;
   u32 vrom_size = header.chr_rom_count * 0x2000;
@@ -47,6 +47,7 @@ struct ROM* ines_rom_load_file(FILE* fp, struct ROM* rom)
   rom->hdr.prg_rom_count = header.prg_rom_count;
   rom->hdr.chr_rom_count = header.chr_rom_count;
   rom->hdr.has_prg_ram = (header.prg_ram_count != 0);
+  rom->hdr.mapper = mapper_num;
 
   return rom;
 

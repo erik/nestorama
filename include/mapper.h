@@ -14,7 +14,7 @@ struct NES;
 static const int BANK_SIZE = 0x2000;
 
 // all bit representations are 7   ->  0
-enum MAPPER {
+enum rom_mapper {
   MMC1 = 1,
 
   /* Any write to 0x8000 - 0xFFFF:
@@ -26,7 +26,7 @@ enum MAPPER {
 };
 
 struct mapper {
-  enum MAPPER num;
+  enum rom_mapper num;
 
   u8 sram[0x2000];
 
