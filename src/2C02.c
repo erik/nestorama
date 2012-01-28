@@ -96,8 +96,8 @@ void ppu_2C02_inspect(struct _2C02* ppu)
 #define U8_TO_BIN(v) (char[9]){ BIT(v, 7), BIT(v, 6), BIT(v, 5), BIT(v, 4), \
       BIT(v, 3), BIT(v, 2), BIT(v, 1), BIT(v, 0), 0 }
 
-  u8 ctrl = *(u8*)&ppu->r.ctrl,
-    mask = *(u8*)&ppu->r.mask,
+  u8 ctrl  = *(u8*)&ppu->r.ctrl,
+    mask   = *(u8*)&ppu->r.mask,
     status = *(u8*)&ppu->r.status;
 
   printf("  PPUCTRL=0b%s\t", U8_TO_BIN(ctrl));

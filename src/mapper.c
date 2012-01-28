@@ -37,19 +37,34 @@ void mapper_init_banks(struct mapper* map)
   }
 }
 
-void mapper_set_rom_bank(struct mapper* map, u8 bank_num, u16 addr, u16 size)
+static void mapper_set_bank(struct mapper* map, u8 bank_num, u16 addr, u16 size,
+                            unsigned rs, u8* rom, u8* dest[])
 {
-  LOGF("Setting 0x%X through 0x%X to bank %d", addr, addr + size, bank_num);
-
   struct NES* nes = map->rom->nes;
 
-  unsigned rom_idx = nes->mem.rom_size + bank_num * size;
+  unsigned rom_idx = rs + bank_num * size;
   u8 end_idx = (addr + size) / BANK_SIZE;
 
   for(u8 bank_idx = addr / BANK_SIZE; bank_idx < end_idx && bank_idx < NUM_BANKS; bank_idx++) {
-    map->rom_banks[bank_idx] = nes->mem.rom + (rom_idx % nes->mem.rom_size);
+    dest[bank_idx] = rom + (rom_idx % rs);
     rom_idx += BANK_SIZE;
   }
+}
+
+void mapper_set_rom_bank(struct mapper* map, u8 bank_num, u16 addr, u16 size)
+{
+  LOGF("Setting 0x%X through 0x%X to ROM bank %d", addr, addr + size, bank_num);
+
+  struct NES* nes = map->rom->nes;
+  mapper_set_bank(map, bank_num, addr, size, nes->mem.rom_size, nes->mem.rom, map->rom_banks);
+}
+
+void mapper_set_vrom_bank(struct mapper* map, u8 bank_num, u16 addr, u16 size)
+{
+  LOGF("Setting 0x%X through 0x%X to VROM bank %d", addr, addr + size, bank_num);
+
+  struct NES* nes = map->rom->nes;
+  mapper_set_bank(map, bank_num, addr, size, nes->mem.vrom_size, nes->mem.vrom, map->vrom_banks);
 }
 
 u8 mapper_fetch_memory(struct mapper* map, u16 addr)
