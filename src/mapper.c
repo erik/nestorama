@@ -151,6 +151,8 @@ void mapper_set_memory(struct mapper* map, u16 addr, u8 val)
 
         u8 bank = map->data.mmc1.regs[1] & 0x10;
 
+
+        // TODO: this is almost certainly wrong here
         mapper_set_vrom_bank(map, use_4k ? bank & 0xFE : bank, 0x0000, 0x0FFF);
         mapper_set_vrom_bank(map, use_4k ? bank & 0xFE + 1 : bank, 0x1000, 0x0FFF);
         break;
