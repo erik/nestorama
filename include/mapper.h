@@ -13,6 +13,19 @@ struct NES;
 #define NUM_BANKS 8
 static const int BANK_SIZE = 0x2000;
 
+// for MMC1
+static struct mmc1_data {
+  u8 write_count;
+  u8 chr_mode;
+  u8 reg_cache;
+  u8 regs[4];
+};
+
+// registers and data values that may be specific to a mapper
+static union mapper_data {
+  struct mmc1_data mmc1;
+};
+
 // all bit representations are 7   ->  0
 enum rom_mapper {
   MMC1 = 1,
@@ -29,6 +42,8 @@ struct mapper {
   enum rom_mapper num;
 
   u8 sram[0x2000];
+
+  union mapper_data data;
 
   u8* rom_banks[NUM_BANKS];
   u8* vrom_banks[NUM_BANKS];

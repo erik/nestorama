@@ -18,9 +18,9 @@ typedef uint64_t u64;
 // 6502 is little endian
 static u16 create_u16(u8 msb, u8 lsb) { return msb | (lsb << 8); }
 
-#define LOGF(...)                                                    \
-  fprintf(stderr, "%s:%d [%s]:\t", __FILE__, __LINE__, __func__);    \
-  fprintf(stderr, __VA_ARGS__);                                      \
+#define LOGF(...)                                                       \
+  fprintf(stderr, "%s:%d\t%-20s\t", __FILE__, __LINE__, __func__);   \
+  fprintf(stderr, __VA_ARGS__);                                         \
   fprintf(stderr, "\n");
 
 #endif /* _DEF_H */
