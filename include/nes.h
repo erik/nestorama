@@ -57,6 +57,8 @@ struct NES {
   struct APU*   apu;
   struct ROM* rom;
 
+  bool is_active;       // true if currently running and not killed
+
   struct memory mem;
 };
 
@@ -67,6 +69,8 @@ void          nes_powerup(struct NES* nes);
 void          nes_reset(struct NES* nes);
 
 bool          nes_load_rom(struct NES* nes, FILE* fp);
+void          nes_run(struct NES* nes);
+
 void          nes_tick(struct NES* nes);
 void          nes_inspect(struct NES* nes);
 u8            nes_fetch_memory(struct NES* nes, u16 addr);

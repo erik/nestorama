@@ -20,6 +20,7 @@ struct NES* nes_create(void)
   nes->mem.vrom = malloc(0);
 
   nes->mem.rom_size = nes->mem.vrom_size = 0;
+  nes->is_active = false;
 
   nes->rom = NULL;
 
@@ -68,6 +69,20 @@ bool nes_load_rom(struct NES* nes, FILE* fp)
   }
 
   return true;
+}
+
+void nes_run(struct NES* nes)
+{
+  LOGF("Beginning execution");
+
+  nes_powerup(nes);
+  nes->is_active = true;
+
+  while(nes->is_active) {
+    nes_tick(nes);
+  }
+
+  return;
 }
 
 void nes_tick(struct NES* nes)

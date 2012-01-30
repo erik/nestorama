@@ -90,24 +90,14 @@ u8 cpu_6502_pop_stack(struct _6502* cpu)
 }
 
 static enum proc_flags {
-  C = 1 << 0,
-  Z = 1 << 1,
-  I = 1 << 2,
-  D = 1 << 3,
-  B = 1 << 4,
-  U = 1 << 5,
-  V = 1 << 6,
-  N = 1 << 7,
+  C = 1 << 0,  Z = 1 << 1,  I = 1 << 2,  D = 1 << 3,
+  B = 1 << 4,  U = 1 << 5,  V = 1 << 6,  N = 1 << 7
 };
 
 static struct flag set_flags(struct flag f, unsigned which, u8 val)
 {
-#define IF(x) if(which & x)
-
-  IF(Z) f.z = val == 0;
-  IF(N) f.n = val & 0x80;
-
-#undef IF
+  if(which & Z) f.z = val == 0;
+  if(which & N) f.n = val & 0x80;
   return f;
 }
 
@@ -168,7 +158,7 @@ void cpu_6502_tick(struct _6502 *cpu)
 
   if(cpu->intr.reset) {
     // TODO: migrate away from this
-    cpu->r.pc = cpu->intr.reset_addr;
+    cpu->r.pc = MEM(0xFFFE);
 
     LOGF("Jumping to reset address of: 0x%X", cpu->r.pc);
 
@@ -441,10 +431,10 @@ void cpu_6502_tick(struct _6502 *cpu)
     // ROR
     OP(0x6A, ROR, val = A);  // ROR imp
 
-    OP(0x66, ROR, ZP);      // ROR zp
-    OP(0x76, ROR, ZPX);     // ROR zpx
-    OP(0x6E, ROR, ABS);     // ROR abs
-    OP(0x7E, ROR, ABX);     // ROR abx
+    OP(0x66, ROR, ZP);       // ROR zp
+    OP(0x76, ROR, ZPX);      // ROR zpx
+    OP(0x6E, ROR, ABS);      // ROR abs
+    OP(0x7E, ROR, ABX);      // ROR abx
   ROR: {
       u16 v16 = (u16) val;
       if(FLAGS.c) v16 |= 0x100;
@@ -675,11 +665,13 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0xD2, KIL, IMP);  // KIL imp
     OP(0xF2, KIL, IMP);  // KIL imp
   KIL:
-    printf("KIL: kill proc here\n");
+    LOGF("Killing processor.");
+    cpu->nes->is_active = false;
     break;
 
   default:
-    printf("WARNINGWARNINGWARNING: OPCODE %X IS NOT IMPLEMENTED\n", op);
+    LOGF("WARNING: Opcode 0x%X isn't implemented, halting", op);
+    cpu->nes->is_active = false;
     break;
   } // switch (op)
 
