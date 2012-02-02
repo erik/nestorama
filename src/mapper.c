@@ -24,42 +24,38 @@ void mapper_free(struct mapper* map)
 
 void mapper_init_banks(struct mapper* map)
 {
-  for(u8 v = 0; v < 4; ++v)
-    mapper_set_rom_bank(map, v == 3 ? -1 : 0, 0x4000, v * 0x4000);
-  /*
   switch(map->num) {
-
+  case NROM:
+    mapper_set_rom_bank(map, 0, 0x8000, 0x8000);
+    break;
   case MMC1:
-    LOGF("init MMC1");
-
-    mapper_set_memory(map, 0x8000, 0x80);
-    break;
   case AXROM:
-    // unknown(?) power up state
-    LOGF("init AXROM");
-    break;
   default:
-    LOGF("TODO: Write init routine for mapper %d", map->num);
-    }*/
+    mapper_set_rom_bank(map, 0,  0x0000, 0x4000);
+    mapper_set_rom_bank(map, 0,  0x4000, 0x4000);
+    mapper_set_rom_bank(map, 0,  0x8000, 0x4000);
+    mapper_set_rom_bank(map, -1, 0xC000, 0x4000);
+    break;
+  }
 }
 
 // this function just factors out some functionality common to ROM and VROM bankswitching
-static void mapper_set_bank(struct mapper* map, u16 index, u16 addr, u16 size, bool use_rom)
+static void mapper_set_bank(struct mapper* map, u32 index, u16 addr, u16 size, bool use_rom)
 {
   struct NES* nes = map->rom->nes;
 
-  u8* rom = use_rom ? nes->mem->rom : nes->mem->vrom;
-  unsigned rs = use_rom ? nes->mem->rom_size : nes->mem->vrom_size;
-  u8** dest = use_rom ? map->rom_banks :  map->vrom_banks;
+  u8* rom    = use_rom ? nes->mem->rom      : nes->mem->vrom;
+  u32 rs     = use_rom ? nes->mem->rom_size : nes->mem->vrom_size;
+  u8** banks = use_rom ? map->rom_banks     : map->vrom_banks;
 
-  unsigned rom_idx = rs + index * size;
-  u8 end_idx = (addr + size) / BANK_SIZE;
+  u32 bs = use_rom ? ROM_BANK_SIZE : VROM_BANK_SIZE;
 
-  for(u8 bank_idx = addr / BANK_SIZE; bank_idx < end_idx && bank_idx < NUM_BANKS; bank_idx++) {
-    dest[bank_idx] = rom + rom_idx % rs;
-    rom_idx += BANK_SIZE;
+  for(u32 page = addr / bs, idx = rs + index * size;
+      page < (addr + size) / bs && page < NUM_BANKS;
+      page++, idx += bs) {
+
+    banks[page] = &rom[idx % rs];
   }
-
 }
 
 void mapper_set_rom_bank(struct mapper* map, u16 index, u16 addr, u16 size)
@@ -86,9 +82,8 @@ u8 mapper_fetch_memory(struct mapper* map, u16 addr)
     return map->sram[addr - 0x6000];
   }
 
-  u8* bank = map->rom_banks[(addr / BANK_SIZE) % NUM_BANKS];
-  return bank[addr % BANK_SIZE];
-
+  u8* bank = map->rom_banks[(addr / ROM_BANK_SIZE) % NUM_BANKS];
+  return bank[addr % ROM_BANK_SIZE];
 }
 
 void mapper_set_memory(struct mapper* map, u16 addr, u8 val)
@@ -173,24 +168,19 @@ void mapper_set_memory(struct mapper* map, u16 addr, u8 val)
         u8 bank = map->data.mmc1.regs[3] & 0xF;
         map->rom->hdr.has_prg_ram = (map->data.mmc1.regs[3] >> 4) & 1;
 
-        LOGF("WHUT");
-
         if(prg == 0) {
           // ignores low bit of bank number
-          mapper_set_rom_bank(map, (bank & 0xE) >> 1, 0x8000, 0x7FFF);
-          LOGF("WHUUUUT => %d", bank);
+          mapper_set_rom_bank(map, (bank & 0xE) >> 1, 0x8000, 0x8000);
         } else {
 
-          LOGF("ERROR IS HERE.");
-
           if(slot == 0) {
-            mapper_set_rom_bank(map, 0, 0x8000, 0x3FFF);
-            mapper_set_rom_bank(map, bank, 0xC000, 0x3FFF);
+            mapper_set_rom_bank(map, 0,    0x8000, 0x4000);
+            mapper_set_rom_bank(map, bank, 0xC000, 0x4000);
           }
 
           if(slot == 1) {
-            mapper_set_rom_bank(map, 0xFF, 0xC000, 0x3FFF);
-            mapper_set_rom_bank(map, bank, 0x8000, 0x3FFF);
+            mapper_set_rom_bank(map, ~0, 0xC000, 0x4000);
+            mapper_set_rom_bank(map, bank, 0x8000, 0x4000);
           }
         }
       }

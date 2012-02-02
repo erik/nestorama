@@ -6,6 +6,7 @@
 
 #include "6502.h"
 #include "nes.h"
+#include "rom.h"
 
 struct _6502* cpu_6502_create(struct NES* nes)
 {
@@ -89,7 +90,7 @@ u8 cpu_6502_pop_stack(struct _6502* cpu)
   return nes_fetch_memory(cpu->nes, addr);
 }
 
-static enum proc_flags {
+enum proc_flags {
   C = 1 << 0,  Z = 1 << 1,  I = 1 << 2,  D = 1 << 3,
   B = 1 << 4,  U = 1 << 5,  V = 1 << 6,  N = 1 << 7
 };
@@ -118,7 +119,7 @@ static struct flag set_flags(struct flag f, unsigned which, u8 val)
 #define PUSH(v)   cpu_6502_push_stack(cpu, v)
 
 // value of memory at program counter *pc
-#define PCVAL     (MEM(++cpu->r.pc))
+#define PCVAL     (MEM(cpu->r.pc++))
 
 // these procedures are for ops that manipulate 16 bit values (addresses)
 // I do some terrifying things here, please forgive me.
@@ -129,9 +130,9 @@ static struct flag set_flags(struct flag f, unsigned which, u8 val)
                                           MEM(MEM(PC - 1) + cpu->r.x) ))
 #define IZY16 addr = (PC += 1, create_u16(MEM(MEM(PC - 1) + cpu->r.y) + 1, \
                                           MEM(MEM(PC - 1) + cpu->r.y) ))
-#define ABS16 addr = (PC += 2, create_u16(MEM(PC - 2), MEM(PC - 1)))
-#define ABX16 addr = (PC += 2, create_u16(MEM(PC - 2), MEM(PC - 1)) + cpu->r.x)
-#define ABY16 addr = (PC += 2, create_u16(MEM(PC - 2), MEM(PC - 1)) + cpu->r.y)
+#define ABS16 (PC += 2, addr = create_u16(MEM(PC - 2), MEM(PC - 1)))
+#define ABX16 (PC += 2, addr = create_u16(MEM(PC - 2), MEM(PC - 1)) + cpu->r.x)
+#define ABY16 (PC += 2, addr = create_u16(MEM(PC - 2), MEM(PC - 1)) + cpu->r.y)
 
 // these procedures are common to every opcode
 #define IMP /* nothing */
@@ -151,21 +152,26 @@ static struct flag set_flags(struct flag f, unsigned which, u8 val)
 #define IMP_OP(num, code) case num: { code; break; }
 #define REL_OP(num, code) case num: { code; break; }
 
-#define BRANCH_IF(cond) u8 jmp = ++PC; if(cond) { PC += (jmp > 0x7F ? jmp - 0xFF : jmp); }
+#define BRANCH_IF(cond) u8 jmp = PCVAL; if(cond) { PC += jmp; LOGF("branch => 0x%X", PC); }
 
 void cpu_6502_tick(struct _6502 *cpu)
 {
 
   if(cpu->intr.reset) {
-    cpu->r.pc = MEM(0xFFFC);
-    cpu->r.pc |= MEM(0xFFFD) << 8;
+    cpu->r.pc = create_u16(MEM(0xFFFC), MEM(0xFFFD));
+
+    if(cpu->nes->rom->map->num == NROM) {
+      cpu->r.pc = 0xC000 ;
+    }
+
     cpu->intr.reset = false;
 
     LOGF("Jumping to reset address of: 0x%X", cpu->r.pc);
     return;
   }
 
-  u8 op = MEM(PC);
+  u8 op = PCVAL;
+  LOGF("op => 0x%X", op);
 
   u8  val  = 0; // temporary value for instructions to use
   u16 addr = 0; // temporary 16 bit value (for addresses)
@@ -277,7 +283,7 @@ void cpu_6502_tick(struct _6502 *cpu)
   CMP: {
       printf("CMP: 0x%X CMP 0x%X => %d\n", A, val, A - val);
 
-      u8 v = A - val;
+      u16 v = A - val;
       FLAGS.c = v < 0x100;
       FLAGS.n = v;
       FLAGS.z = v & 0xFF;
@@ -291,7 +297,7 @@ void cpu_6502_tick(struct _6502 *cpu)
   CPX: {
       printf("CPX: 0x%X CPX 0x%X => %d\n", X, val, X - val);
 
-      u8 v = X - val;
+      u16 v = X - val;
       FLAGS.c = v < 0x100;
       FLAGS.n = v;
       FLAGS.z = v & 0xFF;
@@ -305,7 +311,7 @@ void cpu_6502_tick(struct _6502 *cpu)
   CPY: {
       printf("CPY: 0x%X CPX 0x%X => %d\n", Y, val, Y - val);
 
-      u8 v = Y - val;
+      u16 v = Y - val;
       FLAGS.c = v < 0x100;
       FLAGS.n = v;
       FLAGS.z = v & 0xFF;
@@ -364,7 +370,7 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0x0E, ASL, ABS);      // ASL abs
     OP(0x1E, ASL, ABX);      // ASL abx
   ASL: {
-      FLAGS.c = val & 0x80;
+      FLAGS.c = (val & 0x80) ? 1 : 0;
 
       val <<= 1;
       printf("ASL: 0x%X => 0x%X\n", addr, val);
@@ -386,7 +392,7 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0x3E, ROL, ABX);     // ROL abx
   ROL: {
       u16 v16 = (u16)val;
-      FLAGS.c = val & 0x80;
+      FLAGS.c = (val & 0x80) ? 1 : 0;
 
       v16 <<= 1;
       if(FLAGS.c) val |= 0x01;
@@ -572,11 +578,11 @@ void cpu_6502_tick(struct _6502 *cpu)
            FLAGS.c = 1;
            PUSH(flag_to_u8(FLAGS));
            FLAGS.i = 1;
-           PC = (MEM(0xFFFE) | (MEM(0xFFFF) << 8)) - 1);
+           PC = (MEM(0xFFFE) | (MEM(0xFFFF) << 8)));
 
     IMP_OP(0x40,                       // RTI imp
            FLAGS = u8_to_flag(POP);
-           PC = POP; PC |= (POP << 8); PC -= 1);
+           PC = POP; PC |= (POP << 8));
 
     OP(0x20, JSR, ABS16);              // JSR abs
   JSR: {
@@ -584,16 +590,18 @@ void cpu_6502_tick(struct _6502 *cpu)
       PUSH((PC >> 8) & 0xFF);
       PUSH(PC & 0xFF);
 
-      PC = addr - 1;
+      LOGF("JSR: jumping to 0x%X", addr);
+
+      PC = addr;
       break;
     }
 
-    IMP_OP(0x60, PC = POP - 1);        // RTS imp
+    IMP_OP(0x60, PC = POP);        // RTS imp
 
     OP(0x4C, JMP, ABS);               // JMP abs
     OP(0x6C, JMP, addr = MEM(PCVAL)); // JMP ind
   JMP:
-    printf("JMP: PC = 0x%X\n", PC = addr - 1);
+    printf("JMP: PC = 0x%X\n", PC = addr);
     break;
 
     OP(0x24, BIT, ZP);        // BIT zp
@@ -677,7 +685,7 @@ void cpu_6502_tick(struct _6502 *cpu)
   cpu->ticks += cycles[op];
 
   // TODO: this is annoying, factor out the +1
-  PC += 1;
+  //  PC += 1;
 }
 
 

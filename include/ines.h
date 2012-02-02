@@ -31,7 +31,7 @@ struct ROM;
   - 11-15: Zero filled
 */
 
-static struct iNES_ROM_header {
+struct iNES_ROM_header {
   u8 mapper_num;
 
   u8 prg_rom_count; // blocks of PRG ROM (16KB units)

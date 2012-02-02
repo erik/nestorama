@@ -9,7 +9,7 @@
 
 struct NES;
 
-static struct apu_registers {
+struct apu_registers {
   int placeholder;
 };
 

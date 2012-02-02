@@ -32,7 +32,7 @@ struct flag {
 
 };
 
-static struct registers {
+struct registers {
   u8 a;                 // accumulator
   u8 x;                 // general purpose / index reg
   u8 y;                 // general purpose / index reg
@@ -41,7 +41,7 @@ static struct registers {
   struct flag flags;    // proc status / flag
 };
 
-static struct interrupts {
+struct interrupts {
   bool nmi;
   bool reset;
   bool brk;
@@ -79,6 +79,6 @@ static struct flag u8_to_flag(u8 u) { return *(struct flag*)&u; }
 static u8 flag_to_u8(struct flag f) { return *(u8*)&f; }
 
 // in 6502.c
-const extern u8 cycles[0x100];
+extern const u8 cycles[0x100];
 
 #endif /* _6502_H */
