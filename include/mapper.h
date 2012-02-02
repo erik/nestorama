@@ -56,8 +56,8 @@ struct mapper* mapper_create(struct ROM* rom);
 void           mapper_free(struct mapper* map);
 
 void           mapper_init_banks(struct mapper* map);
-void           mapper_set_rom_bank(struct mapper* map, u8 bank_num, u16 addr, u16 size);
-void           mapper_set_vrom_bank(struct mapper* map, u8 bank_num, u16 addr, u16 size);
+void           mapper_set_rom_bank(struct mapper* map, u16 index, u16 addr, u16 size);
+void           mapper_set_vrom_bank(struct mapper* map, u16 index, u16 addr, u16 size);
 
 u8             mapper_fetch_memory(struct mapper* map, u16 addr);
 void           mapper_set_memory(struct mapper* map, u16 addr, u8 val);

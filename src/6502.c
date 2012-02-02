@@ -25,12 +25,12 @@ void cpu_6502_powerup(struct _6502* cpu)
   cpu->r.a = cpu->r.x = cpu->r.y = 0;
   cpu->r.sp = cpu->r.pc = 0x00;
 
-  memset(cpu->nes->mem.lowmem, 0xFF, 0x800);
+  memset(cpu->nes->mem->lowmem, 0xFF, 0x800);
 
-  cpu->nes->mem.lowmem[0x08] = 0xF7;
-  cpu->nes->mem.lowmem[0x09] = 0xEF;
-  cpu->nes->mem.lowmem[0x0A] = 0xDF;
-  cpu->nes->mem.lowmem[0x0F] = 0xBF;
+  cpu->nes->mem->lowmem[0x08] = 0xF7;
+  cpu->nes->mem->lowmem[0x09] = 0xEF;
+  cpu->nes->mem->lowmem[0x0A] = 0xDF;
+  cpu->nes->mem->lowmem[0x0F] = 0xBF;
 
   // reset triggered on startup
   cpu_6502_reset(cpu);
@@ -157,12 +157,11 @@ void cpu_6502_tick(struct _6502 *cpu)
 {
 
   if(cpu->intr.reset) {
-    // TODO: migrate away from this
-    cpu->r.pc = MEM(0xFFFE);
+    cpu->r.pc = MEM(0xFFFC);
+    cpu->r.pc |= MEM(0xFFFD) << 8;
+    cpu->intr.reset = false;
 
     LOGF("Jumping to reset address of: 0x%X", cpu->r.pc);
-
-    cpu->intr.reset = false;
     return;
   }
 
@@ -232,12 +231,12 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0x7D, ADC, ABX); // ADC abx
     OP(0x79, ADC, ABY); // ADC aby
   ADC: {
-      u16 v16 = val + A + FLAGS.c ? 1 : 0;
+      u16 v16 = val + A + (FLAGS.c ? 1 : 0);
 
       FLAGS.c = v16 > 0xFF;
       FLAGS.v = !((A ^ val) & 0x80) && ((A ^ v16) & 0x80);
 
-      printf("ADC: 0x%X + 0x%X => 0x%X(trunc:0x%X )\n", A, val, v16, val);
+      printf("ADC: 0x%X + 0x%X => 0x%X(trunc:0x%X)\n", A, val, v16, (u8)v16);
       val = v16 & 0xFF;
       A = val;
 
@@ -255,7 +254,7 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0xFD, SBC, ABX); // SBC abx
     OP(0xF9, SBC, ABY); // SBC aby
   SBC: {
-      u16 v16 = A - val - FLAGS.c ? 0 : 1;
+      u16 v16 = A - val - (FLAGS.c ? 0 : 1);
       FLAGS.v = ((A ^ v16) & 0x80) && ((A ^ val) & 0x80);
       FLAGS.c = v16 < 0x100;
 

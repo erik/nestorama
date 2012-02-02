@@ -24,6 +24,9 @@ void mapper_free(struct mapper* map)
 
 void mapper_init_banks(struct mapper* map)
 {
+  for(u8 v = 0; v < 4; ++v)
+    mapper_set_rom_bank(map, v == 3 ? -1 : 0, 0x4000, v * 0x4000);
+  /*
   switch(map->num) {
 
   case MMC1:
@@ -37,38 +40,42 @@ void mapper_init_banks(struct mapper* map)
     break;
   default:
     LOGF("TODO: Write init routine for mapper %d", map->num);
-  }
+    }*/
 }
 
 // this function just factors out some functionality common to ROM and VROM bankswitching
-static void mapper_set_bank(struct mapper* map, u8 bank_num, u16 addr, u16 size,
-                            unsigned rs, u8* rom, u8* dest[])
+static void mapper_set_bank(struct mapper* map, u16 index, u16 addr, u16 size, bool use_rom)
 {
   struct NES* nes = map->rom->nes;
 
-  unsigned rom_idx = rs + bank_num * size;
+  u8* rom = use_rom ? nes->mem->rom : nes->mem->vrom;
+  unsigned rs = use_rom ? nes->mem->rom_size : nes->mem->vrom_size;
+  u8** dest = use_rom ? map->rom_banks :  map->vrom_banks;
+
+  unsigned rom_idx = rs + index * size;
   u8 end_idx = (addr + size) / BANK_SIZE;
 
   for(u8 bank_idx = addr / BANK_SIZE; bank_idx < end_idx && bank_idx < NUM_BANKS; bank_idx++) {
-    dest[bank_idx] = rom + (rom_idx % rs);
+    dest[bank_idx] = rom + rom_idx % rs;
     rom_idx += BANK_SIZE;
   }
+
 }
 
-void mapper_set_rom_bank(struct mapper* map, u8 bank_num, u16 addr, u16 size)
+void mapper_set_rom_bank(struct mapper* map, u16 index, u16 addr, u16 size)
 {
-  LOGF("Setting 0x%X through 0x%X to ROM bank %d", addr, addr + size, bank_num);
+  LOGF("Setting 0x%X through 0x%X to ROM index %d", addr, addr + size, index);
 
   struct NES* nes = map->rom->nes;
-  mapper_set_bank(map, bank_num, addr, size, nes->mem.rom_size, nes->mem.rom, map->rom_banks);
+  mapper_set_bank(map, index, addr, size, true);
 }
 
-void mapper_set_vrom_bank(struct mapper* map, u8 bank_num, u16 addr, u16 size)
+void mapper_set_vrom_bank(struct mapper* map, u16 index, u16 addr, u16 size)
 {
-  LOGF("Setting 0x%X through 0x%X to VROM bank %d", addr, addr + size, bank_num);
+  LOGF("Setting 0x%X through 0x%X to VROM index %d", addr, addr + size, index);
 
   struct NES* nes = map->rom->nes;
-  mapper_set_bank(map, bank_num, addr, size, nes->mem.vrom_size, nes->mem.vrom, map->vrom_banks);
+  mapper_set_bank(map, index, addr, size, false);
 }
 
 u8 mapper_fetch_memory(struct mapper* map, u16 addr)
@@ -93,7 +100,6 @@ void mapper_set_memory(struct mapper* map, u16 addr, u8 val)
     if(val >> 7) {
       map->data.mmc1.write_count = 0;
       map->data.mmc1.regs[0] = (1 << 2) | (1 << 3);
-      map->data.mmc1.write_count = map->data.mmc1.reg_cache = 0;
 
       LOGF("MMC1 reset bit set");
 
@@ -104,68 +110,59 @@ void mapper_set_memory(struct mapper* map, u16 addr, u8 val)
 
     // only every 5th write actually does anything
     if(++map->data.mmc1.write_count == 5) {
-      u8 reg_index = (addr >> 13) & 3;
-      u8 value = map->data.mmc1.regs[reg_index] = map->data.mmc1.reg_cache;
+      u8 reg_index, value;
 
+    switch_prg:
+
+      reg_index = (addr >> 13) & 3;
+      value = map->data.mmc1.regs[reg_index] = map->data.mmc1.reg_cache;
       map->data.mmc1.write_count = map->data.mmc1.reg_cache = 0;
 
-      switch(reg_index) {
-      case 0: {
-        /* control register (actual bankswitching takes place in 0xE000 - 0xFFFF)
-           $8000-9FFF:  [...C PSMM]
-           - C = CHR Mode (0=8k mode, 1=4k mode)
-           - P = PRG Size (0=32k mode, 1=16k mode)
+      /* control register (actual bankswitching takes place in 0xE000 - 0xFFFF)
+         $8000-9FFF:  [...C PSMM]
+         - C = CHR Mode (0=8k mode, 1=4k mode)
+         - P = PRG Size (0=32k mode, 1=16k mode)
 
-           - S = Slot select:
-           -- 0 = $C000 swappable, $8000 fixed to page $00 (mode A)
-           -- 1 = $8000 swappable, $C000 fixed to page $0F (mode B)
-           -- This bit is ignored when 'P' is clear (32k mode)
+         - S = Slot select:
+         -- 0 = $C000 swappable, $8000 fixed to page $00 (mode A)
+         -- 1 = $8000 swappable, $C000 fixed to page $0F (mode B)
+         -- This bit is ignored when 'P' is clear (32k mode)
 
-           - M = Mirroring control:
-           -- %00 = 1ScA
-           -- %01 = 1ScB
-           -- %10 = Vert
-           -- %11 = Horz
-        */
+         - M = Mirroring control:
+         -- %00 = 1ScA
+         -- %01 = 1ScB
+         -- %10 = Vert
+         -- %11 = Horz
+      */
 
-        map->data.mmc1.chr_mode = (value >> 4) & 1;
+      map->data.mmc1.chr_mode = (value >> 4) & 1;
 
-        // TODO: nametable mirroring
+      // TODO: nametable mirroring
 
-        break;
-      }
+      /* CHR Bank 0
+         $A000-BFFF:  [...C CCCC]
+         - CHR Reg 0
 
-      case 1:
-      case 2: {
-        /* CHR Bank 0
-           $A000-BFFF:  [...C CCCC]
-           - CHR Reg 0
-
-           CHR Bank 1
-           $C000-DFFF:  [...C CCCC]
-           - CHR Reg 1
-        */
-
+         CHR Bank 1
+         $C000-DFFF:  [...C CCCC]
+         - CHR Reg 1
+      */
+      {
         // checks if bit 5 is set (4k)
         u8 use_4k = (map->data.mmc1.regs[0] >> 4) & 1;
-
         u8 bank = map->data.mmc1.regs[1] & 0x10;
 
-
         // TODO: this is almost certainly wrong here
-        mapper_set_vrom_bank(map, use_4k ? bank & 0xFE : bank, 0x0000, 0x0FFF);
-        mapper_set_vrom_bank(map, use_4k ? bank & 0xFE + 1 : bank, 0x1000, 0x0FFF);
-        break;
+        // mapper_set_vrom_bank(map, use_4k ? bank & 0xFE : bank, 0x0000, 0x0FFF);
+        // mapper_set_vrom_bank(map, use_4k ? bank & 0xFE + 1 : bank, 0x1000, 0x0FFF);
       }
 
-      case 3:
-      switch_prg: {
-        /* PRG Bank
-           $E000-FFFF:  [...W PPPP]
-           - W = RAM Disable (0=enabled, 1=disabled)
-           - P = PRG Reg
-        */
-
+      /* PRG Bank
+         $E000-FFFF:  [...W PPPP]
+         - W = RAM Disable (0=enabled, 1=disabled)
+         - P = PRG Reg
+      */
+      {
         u8 reg0 = map->data.mmc1.regs[0];
 
         u8 chr = (reg0 >> 4) & 1;
@@ -174,14 +171,17 @@ void mapper_set_memory(struct mapper* map, u16 addr, u8 val)
         u8 mirror = reg0 & 3;
 
         u8 bank = map->data.mmc1.regs[3] & 0xF;
-        u8 has_ram = (map->data.mmc1.regs[3] >> 4) & 1;
+        map->rom->hdr.has_prg_ram = (map->data.mmc1.regs[3] >> 4) & 1;
 
-        map->rom->hdr.has_prg_ram = has_ram;
+        LOGF("WHUT");
 
         if(prg == 0) {
           // ignores low bit of bank number
           mapper_set_rom_bank(map, (bank & 0xE) >> 1, 0x8000, 0x7FFF);
+          LOGF("WHUUUUT => %d", bank);
         } else {
+
+          LOGF("ERROR IS HERE.");
 
           if(slot == 0) {
             mapper_set_rom_bank(map, 0, 0x8000, 0x3FFF);
@@ -193,9 +193,6 @@ void mapper_set_memory(struct mapper* map, u16 addr, u8 val)
             mapper_set_rom_bank(map, bank, 0x8000, 0x3FFF);
           }
         }
-
-        break;
-      }
       }
     }
 

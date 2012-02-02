@@ -33,14 +33,23 @@ struct ROM* ines_rom_load_file(FILE* fp, struct ROM* rom)
 
   LOGF("Loading 0x%X bytes of PRG ROM and 0x%X bytes of VROM", rom_size, vrom_size);
 
-  u8* rom_buf = malloc(rom_size);
-  u8* vrom_buf = malloc(vrom_size);
+  unsigned read;
 
-  fread(rom_buf, 1, rom_size, fp);
-  fread(vrom_buf, 1, vrom_size, fp);
+  rom->nes->mem->rom_size = rom_size;
+  rom->nes->mem->vrom_size = vrom_size;
 
-  nes_set_rom(rom->nes, rom_buf, rom_size);
-  nes_set_vrom(rom->nes, vrom_buf, vrom_size);
+  rom->nes->mem->rom = malloc(rom_size);
+  rom->nes->mem->vrom = malloc(vrom_size);
+
+  if((read = fread(rom->nes->mem->rom, 1, rom_size, fp)) != rom_size) {
+    LOGF("Unexpected EOF in ROM (wanted 0x%X bytes, only saw 0x%X)", rom_size, read);
+    goto fail;
+  }
+
+  if((read = fread(rom->nes->mem->vrom, 1, vrom_size, fp)) != vrom_size)  {
+    LOGF("Unexpected EOF in VROM (wanted 0x%X bytes, only saw 0x%X)", vrom_size, read);
+    goto fail;
+  }
 
   rom->hdr.type = INES;
   rom->hdr.format = header.format ? PAL : NTSC;

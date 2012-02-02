@@ -10,16 +10,15 @@
 
 struct NES* nes_create(void)
 {
-  struct NES* nes = malloc(sizeof(struct NES));
+  struct NES* nes = calloc(1, sizeof(struct NES));
 
   nes->cpu = cpu_6502_create(nes);
   nes->ppu = ppu_2C02_create(nes);
   nes->apu = apu_create(nes);
 
-  nes->mem.rom = malloc(0);
-  nes->mem.vrom = malloc(0);
+  nes->mem = calloc(1, sizeof(struct memory));
 
-  nes->mem.rom_size = nes->mem.vrom_size = 0;
+  nes->mem->rom_size = nes->mem->vrom_size = 0;
   nes->is_active = false;
 
   nes->rom = NULL;
@@ -34,8 +33,10 @@ void nes_free(struct NES* nes)
   ppu_2C02_free(nes->ppu);
   apu_free(nes->apu);
 
-  free(nes->mem.rom);
-  free(nes->mem.vrom);
+
+  free(nes->mem->rom);
+  free(nes->mem->vrom);
+  free(nes->mem);
 
   if(nes->rom) rom_free(nes->rom);
 
@@ -114,7 +115,7 @@ u8 nes_fetch_memory(struct NES* nes, u16 addr)
 {
   // Low memory
   if(addr < 0x2000) {
-    return nes->mem.lowmem[addr & 0x7FF];
+    return nes->mem->lowmem[addr & 0x7FF];
   }
 
   // PPU registers
@@ -124,7 +125,7 @@ u8 nes_fetch_memory(struct NES* nes, u16 addr)
 
   // APU registers
   if(addr < 0x4018) {
-    return nes->mem.apureg[addr & 0x7];
+    return nes->mem->apureg[addr & 0x7];
   }
 
   // ROM memory
@@ -138,7 +139,7 @@ void nes_set_memory(struct NES* nes, u16 addr, u8 value)
 
   // Low memory
   if(addr < 0x2000) {
-    nes->mem.lowmem[addr & 0x7FF] = value;
+    nes->mem->lowmem[addr & 0x7FF] = value;
   }
 
   // PPU registers
@@ -148,30 +149,11 @@ void nes_set_memory(struct NES* nes, u16 addr, u8 value)
 
   // APU registers
   else if(addr < 0x4018) {
-    nes->mem.apureg[addr & 0x17] = value;
+    nes->mem->apureg[addr & 0x17] = value;
   }
 
   // ROM memory
   else {
     rom_set_memory(nes->rom, addr, value);
   }
-}
-
-
-void nes_set_rom(struct NES* nes, u8* rom, u32 size)
-{
-  LOGF("Changing ROM size to 0x%X", size);
-  free(nes->mem.rom);
-
-  nes->mem.rom = rom;
-  nes->mem.rom_size = size;
-}
-
-void nes_set_vrom(struct NES* nes, u8* rom, u32 size)
-{
-  LOGF("Changing VROM size to 0x%X", size);
-  free(nes->mem.vrom);
-
-  nes->mem.vrom = rom;
-  nes->mem.vrom_size = size;
 }
