@@ -14,21 +14,21 @@
 struct flag {
   /* C => carry        - set if add/sub produces carry/borrow,
      bit after shift */
-  int c : 1;
+  bool c : 1;
   /* Z => zero         - load/inc/dec/add/sub was zero */
-  int z : 1;
+  bool z : 1;
   /* I => IRQ disable  - maskable interrupts are disabled */
-  int i : 1;
+  bool i : 1;
   /* D => Decimal mode - decimal mode active */
-  int d : 1;
+  bool d : 1;
   /* B => BRK command  - interrupt caused by BRK */
-  int b : 1;
+  bool b : 1;
   /* 1 => Unused       - always 1 */
-  int u : 1;
+  bool u : 1;
   /* V => Overflow     - over/underflow produced  */
-  int v : 1;
+  bool v : 1;
   /* N => Negative     - bit 7 of accumulator is set */
-  int n : 1;
+  bool n : 1;
 
 };
 
