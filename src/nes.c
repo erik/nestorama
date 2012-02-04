@@ -75,10 +75,10 @@ bool nes_load_rom(struct NES* nes, FILE* fp)
 void nes_run(struct NES* nes)
 {
   LOGF("Beginning execution");
-
   nes_powerup(nes);
   nes->is_active = true;
 
+  printf("PC     OP  \tNAM  TYPE\tINFO\n");
   while(nes->is_active) {
     nes_tick(nes);
   }
