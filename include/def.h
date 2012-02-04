@@ -19,8 +19,8 @@ typedef uint64_t u64;
 static u16 create_u16(u8 lsb, u8 msb) { return (msb << 8) | lsb ; }
 
 #define LOGF(...)                                                       \
-  fprintf(stderr, "%s:%d\t%-20s\t", __FILE__, __LINE__, __func__);   \
-  fprintf(stderr, __VA_ARGS__);                                         \
-  fprintf(stderr, "\n");
+  printf("%s:%d\t%-20s\t", __FILE__, __LINE__, __func__);               \
+  printf( __VA_ARGS__);                                                 \
+  printf("\n");
 
 #endif /* _DEF_H */

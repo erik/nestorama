@@ -29,7 +29,6 @@ struct flag {
   bool v : 1;
   /* N => Negative     - bit 7 of accumulator is set */
   bool n : 1;
-
 };
 
 struct registers {

@@ -65,10 +65,10 @@ void cpu_6502_inspect(struct _6502* cpu)
     flags[i] = flags[i] ? '1' : '0';
   }
 
-  printf("6502 = {\n"                                   \
-         "  ticks=%d\n"                                 \
-         "  registers = {"                              \
-         " a=0x%X, x=0x%X, y=0x%x, sp=0x%X, "           \
+  printf("6502 = {\n"                                     \
+         "  ticks=%d"                                     \
+         "  registers = {\n"                              \
+         " a=0x%X, x=0x%X, y=0x%x, sp=0x%X, "             \
          "pc=0x%X, flags (CZIDBUVN)=0b%s }\n"
          "}\n",
          cpu->ticks,
@@ -79,14 +79,14 @@ void cpu_6502_inspect(struct _6502* cpu)
 // push a value onto the stack
 void cpu_6502_push_stack(struct _6502* cpu, u8 val)
 {
-  u16 addr = 0x100 + cpu->r.sp--;
+  u16 addr = 0xFF + cpu->r.sp--;
   nes_set_memory(cpu->nes, addr, val);
 }
 
 // pop a value off of the stack
 u8 cpu_6502_pop_stack(struct _6502* cpu)
 {
-  u16 addr = 0x100 + cpu->r.sp++;
+  u16 addr = 0xFF + ++cpu->r.sp;
   return nes_fetch_memory(cpu->nes, addr);
 }
 
@@ -126,17 +126,15 @@ static struct flag set_flags(struct flag f, unsigned which, u8 val)
 #define ZP16  addr = PCVAL
 #define ZPX16 addr = PCVAL + cpu->r.x
 #define ZPY16 addr = PCVAL + cpu->r.y
-#define IZX16 addr = (PC += 1, create_u16(MEM(MEM(PC - 1) + cpu->r.x) + 1, \
-                                          MEM(MEM(PC - 1) + cpu->r.x) ))
-#define IZY16 addr = (PC += 1, create_u16(MEM(MEM(PC - 1) + cpu->r.y) + 1, \
-                                          MEM(MEM(PC - 1) + cpu->r.y) ))
+#define IZX16 (PC++, addr = create_u16(MEM(MEM(PC - 1) + X), MEM(MEM(PC - 1) + X + 1)))
+#define IZY16 (PC++, addr = create_u16(MEM(MEM(PC - 1)), MEM(MEM(PC - 1) + 1)) + Y)
 #define ABS16 (PC += 2, addr = create_u16(MEM(PC - 2), MEM(PC - 1)))
 #define ABX16 (PC += 2, addr = create_u16(MEM(PC - 2), MEM(PC - 1)) + cpu->r.x)
 #define ABY16 (PC += 2, addr = create_u16(MEM(PC - 2), MEM(PC - 1)) + cpu->r.y)
 
 // these procedures are common to every opcode
 #define IMP /* nothing */
-#define IMM val = PCVAL
+#define IMM val = MEM(PC++)
 #define ZP  val = MEM(ZP16)
 #define ZPX val = MEM(ZPX16)
 #define ZPY val = MEM(ZPY16)
@@ -147,10 +145,10 @@ static struct flag set_flags(struct flag f, unsigned which, u8 val)
 #define ABY val = MEM(ABY16)
 
 // save some keystrokes
-#define OP(num, fam, type) case num: { type; goto fam; break; }
+#define OP(num, fam, type) case num: { printf("0x%X %s\t%s\t", num, #fam, #type); type; goto fam; break; }
 // implicit op
-#define IMP_OP(num, code) case num: { code; break; }
-#define REL_OP(num, code) case num: { code; break; }
+#define IMP_OP(num, code) case num: { printf("0x%X ()\tIMP\t", num); code; break; }
+#define REL_OP(num, code) case num: { printf("0x%X ()\tREL\t", num); code; break; }
 
 #define BRANCH_IF(cond) u8 jmp = PCVAL; if(cond) { PC += jmp; LOGF("branch => 0x%X", PC); }
 
@@ -171,7 +169,7 @@ void cpu_6502_tick(struct _6502 *cpu)
   }
 
   u8 op = PCVAL;
-  LOGF("op => 0x%X", op);
+  printf("0x%X ", PC - 1);
 
   u8  val  = 0; // temporary value for instructions to use
   u16 addr = 0; // temporary 16 bit value (for addresses)
@@ -189,7 +187,7 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0x1D, ORA, ABX); // ORA abx
     OP(0x19, ORA, ABY); // ORA aby
   ORA:
-    printf("ORA: 0x%X | 0x%X => 0x%X\n", A, val, A | val);
+    printf("ORA: 0x%X | 0x%X => 0x%X", A, val, A | val);
     A |= val;
 
     SET_FLAGS(N|Z, A);
@@ -205,7 +203,7 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0x3D, AND, ABX); // AND abx
     OP(0x39, AND, ABY); // AND aby
   AND:
-    printf("AND: 0x%X & 0x%X => 0x%X\n", A, val, A & val);
+    printf("AND: 0x%X & 0x%X => 0x%X", A, val, A & val);
     A &= val;
 
     SET_FLAGS(N|Z, A);
@@ -221,7 +219,7 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0x5D, EOR, ABX); // EOR abx
     OP(0x59, EOR, ABY); // EOR aby
   EOR:
-    printf("EOR: 0x%X ^ 0x%X => 0x%X\n", A, val, A ^ val);
+    printf("EOR: 0x%X ^ 0x%X => 0x%X", A, val, A ^ val);
     A ^= val;
 
     SET_FLAGS(N|Z, A);
@@ -242,13 +240,13 @@ void cpu_6502_tick(struct _6502 *cpu)
       FLAGS.c = v16 > 0xFF;
       FLAGS.v = !((A ^ val) & 0x80) && ((A ^ v16) & 0x80);
 
-      printf("ADC: 0x%X + 0x%X => 0x%X(trunc:0x%X)\n", A, val, v16, (u8)v16);
+      printf("ADC: 0x%X + 0x%X => 0x%X(trunc:0x%X)", A, val, v16, (u8)v16);
       val = v16 & 0xFF;
       A = val;
 
       SET_FLAGS(N|Z, A);
       break;
-  }
+    }
 
     // SBC
     OP(0xE9, SBC, IMM); // SBC imm
@@ -260,12 +258,14 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0xFD, SBC, ABX); // SBC abx
     OP(0xF9, SBC, ABY); // SBC aby
   SBC: {
-      u16 v16 = A - val - (FLAGS.c ? 0 : 1);
-      FLAGS.v = ((A ^ v16) & 0x80) && ((A ^ val) & 0x80);
-      FLAGS.c = v16 < 0x100;
+      // XXX: at least IZY is broken for SBC
 
-      printf("SBC: 0x%X - 0x%X => 0x%X(truc:0x%X)\n", A, val, v16, v16 & 0xFF);
-      A = v16 & 0xFF;
+      unsigned v = A - val - (FLAGS.c ? 0 : 1);
+      FLAGS.v = ((A ^ v) & 0x80) && ((A ^ val) & 0x80);
+      FLAGS.c = v < 0x100;
+
+      printf("SBC: 0x%X - 0x%X => 0x%X(truc:0x%X)", A, val, v, v & 0xFF);
+      A = v & 0xFF;
 
       SET_FLAGS(N|Z, A);
       break;
@@ -281,12 +281,11 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0xDD, CMP, ABX); // CMP abx
     OP(0xD9, CMP, ABY); // CMP aby
   CMP: {
-      printf("CMP: 0x%X CMP 0x%X => %d\n", A, val, A - val);
+      printf("CMP: 0x%X CMP 0x%X => %d", A, val, A - val);
 
       u16 v = A - val;
       FLAGS.c = v < 0x100;
-      FLAGS.n = v;
-      FLAGS.z = v & 0xFF;
+      SET_FLAGS(N|Z, v & 0xFF);
       break;
     }
 
@@ -295,7 +294,7 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0xE4, CPX, ZP);  // CPX zp
     OP(0xEC, CPX, ABS); // CPX abs
   CPX: {
-      printf("CPX: 0x%X CPX 0x%X => %d\n", X, val, X - val);
+      printf("CPX: 0x%X CPX 0x%X => %d", X, val, X - val);
 
       u16 v = X - val;
       FLAGS.c = v < 0x100;
@@ -309,7 +308,7 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0xC4, CPY, ZP);  // CPY zp
     OP(0xCC, CPY, ABS); // CPY abs
   CPY: {
-      printf("CPY: 0x%X CPX 0x%X => %d\n", Y, val, Y - val);
+      printf("CPY: 0x%X CPX 0x%X => %d", Y, val, Y - val);
 
       u16 v = Y - val;
       FLAGS.c = v < 0x100;
@@ -325,9 +324,9 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0xDE, DEC, ABX); //DEC abx
   DEC: {
       val -= 1;
-      printf("DEC: 0x%X => 0x%X\n", addr, val);
+      printf("DEC: 0x%X => 0x%X", addr, val);
       SETMEM(addr, val);
-      printf("==> 0x%X\n", MEM(addr));
+      printf("==> 0x%X", MEM(addr));
 
       SET_FLAGS(N|Z, val);
       break;
@@ -347,9 +346,9 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0xFE, INC, ABX); //INC abx
   INC: {
       val += 1;
-      printf("INC: 0x%X => 0x%X\n", addr, val);
+      printf("INC: 0x%X => 0x%X", addr, val);
       SETMEM(addr, val);
-      printf("==> 0x%X\n", MEM(addr));
+      printf("==> 0x%X", MEM(addr));
 
       SET_FLAGS(N|Z, val);
       break;
@@ -373,7 +372,7 @@ void cpu_6502_tick(struct _6502 *cpu)
       FLAGS.c = (val & 0x80) ? 1 : 0;
 
       val <<= 1;
-      printf("ASL: 0x%X => 0x%X\n", addr, val);
+      printf("ASL: 0x%X => 0x%X", addr, val);
       if(op == 0x0A) // ASL imp
         A = val;
       else
@@ -401,7 +400,7 @@ void cpu_6502_tick(struct _6502 *cpu)
 
       val = v16 & 0xFF;
 
-      printf("ROL: 0x%X => 0x%X\n", addr, val);
+      printf("ROL: 0x%X => 0x%X", addr, val);
 
       if(op == 0x2A)  // ROL imp
         A = val;
@@ -423,7 +422,7 @@ void cpu_6502_tick(struct _6502 *cpu)
       FLAGS.c = val & 0x01;
       val >>= 1;
 
-      printf("LSR: 0x%X => 0x%X\n", addr, val);
+      printf("LSR: 0x%X => 0x%X", addr, val);
       if(op == 0x4A) // LSR imp
         A = val;
       else
@@ -447,7 +446,7 @@ void cpu_6502_tick(struct _6502 *cpu)
       v16 >>= 1;
       val = v16 & 0xFF;
 
-      printf("ROR: 0x%X => 0x%X\n", addr, val);
+      printf("ROR: 0x%X => 0x%X", addr, val);
 
       if(op == 0x6A) // ROR imp
         A = val;
@@ -470,7 +469,7 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0xBD, LDA, ABX); // LDA abx
     OP(0xB9, LDA, ABY); // LDA aby
   LDA:
-    printf("LDA: A = 0x%X\n", val);
+    printf("LDA: A = 0x%X", val);
     A = val;
 
     SET_FLAGS(N|Z, A);
@@ -485,9 +484,9 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0x9D, STA, ABX); // STA abx
     OP(0x99, STA, ABY); // STA aby
   STA: {
-      printf("STA: address 0x%X -> 0x%X\n", addr, A);
+      printf("STA: address 0x%X -> 0x%X", addr, A);
       SETMEM(addr, A);
-      printf("STA: ==> 0x%X\n", MEM(addr));
+      printf("STA: ==> 0x%X", MEM(addr));
       break;
     }
 
@@ -498,7 +497,7 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0xAE, LDX, ABS); // LDX abs
     OP(0xBE, LDX, ABY); // LDX aby
   LDX: {
-      printf("LDX: X = 0x%X\n", val);
+      printf("LDX: X = 0x%X", val);
       X = val;
 
       SET_FLAGS(N|Z, X);
@@ -510,7 +509,7 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0x96, STX, ZPY); // STX zpy
     OP(0x8E, STX, ABS); // STX abs
   STX: {
-      printf("STX: 0x%X -> 0x%X\n", addr, X);
+      printf("STX: 0x%X -> 0x%X", addr, X);
       SETMEM(addr, X);
       break;
     }
@@ -522,7 +521,7 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0xAC, LDY, ABS); // LDY abs
     OP(0xBC, LDY, ABX); // LDY abx
   LDY:
-    printf("LDX: Y = 0x%X\n", val);
+    printf("LDX: Y = 0x%X", val);
     Y = val;
 
     SET_FLAGS(N|Z, Y);
@@ -534,7 +533,7 @@ void cpu_6502_tick(struct _6502 *cpu)
     OP(0x94, STY, ZPX); // STY zpx
     OP(0x8C, STY, ABS); // STY abs
   STY:
-    printf("STY: 0x%X -> 0x%X\n", addr, Y);
+    printf("STY: 0x%X -> 0x%X", addr, Y);
     SETMEM(addr, Y);
     break;
 
@@ -559,6 +558,7 @@ void cpu_6502_tick(struct _6502 *cpu)
            SET_FLAGS(N|Z, A));             // PLA imp
     IMP_OP(0x48, PUSH(A));                 // PHA imp
     IMP_OP(0x08, PUSH(flag_to_u8(FLAGS))); // PHP imp
+    IMP_OP(0x28, FLAGS = u8_to_flag(POP));   // PLP imp
 
     ///// Jump / flag operations
 
@@ -573,7 +573,7 @@ void cpu_6502_tick(struct _6502 *cpu)
     REL_OP(0xF0, BRANCH_IF(FLAGS.z));  // BEQ rel
 
     IMP_OP(0x00,                       // BRK imp
-           PUSH((PC >> 8) & 0xFF);
+           PUSH((--PC >> 8) & 0xFF);
            PUSH(PC & 0xFF);
            FLAGS.c = 1;
            PUSH(flag_to_u8(FLAGS));
@@ -590,18 +590,20 @@ void cpu_6502_tick(struct _6502 *cpu)
       PUSH((PC >> 8) & 0xFF);
       PUSH(PC & 0xFF);
 
-      LOGF("JSR: jumping to 0x%X", addr);
+      LOGF("JSR: jumping to 0x%X PC=>0x%X (0x%X 0x%X)", addr, PC, (PC >> 8) & 0xFF, (PC & 0xFF));
 
       PC = addr;
       break;
     }
 
-    IMP_OP(0x60, PC = POP);        // RTS imp
+    IMP_OP(0x60, PC = POP;
+           PC += (POP << 8) + 1;
+           LOGF("RTS: 0x%X", PC));        // RTS imp
 
     OP(0x4C, JMP, ABS);               // JMP abs
     OP(0x6C, JMP, addr = MEM(PCVAL)); // JMP ind
   JMP:
-    printf("JMP: PC = 0x%X\n", PC = addr);
+    printf("JMP: PC = 0x%X", PC = addr);
     break;
 
     OP(0x24, BIT, ZP);        // BIT zp
@@ -682,10 +684,9 @@ void cpu_6502_tick(struct _6502 *cpu)
     break;
   } // switch (op)
 
-  cpu->ticks += cycles[op];
+  puts("");
 
-  // TODO: this is annoying, factor out the +1
-  //  PC += 1;
+  cpu->ticks += cycles[op];
 }
 
 

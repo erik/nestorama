@@ -1,4 +1,5 @@
-*~
-*.o
+*.log
+output.txt
 nestorama
-test/
+*.o
+*~
