@@ -31,6 +31,7 @@ union mapper_data {
 enum rom_mapper {
   NROM = 0,
   MMC1 = 1,
+  CNROM = 3,
 
   /* Any write to 0x8000 - 0xFFFF:
     xxxM xPPP

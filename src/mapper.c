@@ -25,6 +25,7 @@ void mapper_free(struct mapper* map)
 void mapper_init_banks(struct mapper* map)
 {
   switch(map->num) {
+  case CNROM:
   case NROM:
     mapper_set_rom_bank(map, 0, 0x8000, 0x8000);
     break;
@@ -195,6 +196,11 @@ void mapper_set_memory(struct mapper* map, u16 addr, u8 val)
     // (val >> 3) & 1 to grab bit 4 (vrom)
     // mapper_set_vrom_bank(map, (val >> 3) & 0x1, ..., ...);
     break;
+  }
+
+  case NROM:
+  case CNROM: {
+    // TODO: simulate bus conflict
   }
 
   default:

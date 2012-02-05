@@ -126,23 +126,43 @@ static struct flag set_flags(struct flag f, unsigned which, u8 val)
 #define ZP16  addr = PCVAL
 #define ZPX16 addr = PCVAL + cpu->r.x
 #define ZPY16 addr = PCVAL + cpu->r.y
-#define IZX16 (PC++, addr = create_u16(MEM(MEM(PC - 1) + X), MEM(MEM(PC - 1) + X + 1)))
-#define IZY16 (PC++, addr = create_u16(MEM(MEM(PC - 1)), MEM(MEM(PC - 1) + 1)) + Y)
-#define ABS16 (PC += 2, addr = create_u16(MEM(PC - 2), MEM(PC - 1)))
-#define ABX16 (PC += 2, addr = create_u16(MEM(PC - 2), MEM(PC - 1)) + cpu->r.x)
-#define ABY16 (PC += 2, addr = create_u16(MEM(PC - 2), MEM(PC - 1)) + cpu->r.y)
+
+#define IZX16 {                                             \
+    u8 pcval = PCVAL;                                       \
+    addr = create_u16(MEM(pcval + X), MEM(pcval + X + 1));  \
+  }
+
+#define IZY16 {                                             \
+    u8 pcval = PCVAL;                                       \
+    addr = create_u16(MEM(pcval), MEM(pcval + 1)) + Y;      \
+  }
+
+#define ABS16 {                                     \
+    PC += 2;                                        \
+    addr = create_u16(MEM(PC - 2), MEM(PC - 1));    \
+  }
+
+#define ABX16 {                                             \
+    PC += 2;                                                \
+    addr = create_u16(MEM(PC - 2), MEM(PC - 1)) + cpu->r.x; \
+  }
+
+#define ABY16 {                                             \
+    PC += 2;                                                \
+    addr = create_u16(MEM(PC - 2), MEM(PC - 1)) + cpu->r.y; \
+  }
 
 // these procedures are common to every opcode
 #define IMP /* nothing */
 #define IMM val = MEM(PC++)
-#define ZP  val = MEM(ZP16)
-#define ZPX val = MEM(ZPX16)
-#define ZPY val = MEM(ZPY16)
-#define IZX val = MEM(IZX16)
-#define IZY val = MEM(IZY16)
-#define ABS val = MEM(ABS16)
-#define ABX val = MEM(ABX16)
-#define ABY val = MEM(ABY16)
+#define ZP  ZP16;  val = MEM(addr)
+#define ZPX ZPX16; val = MEM(addr)
+#define ZPY ZPX16; val = MEM(addr)
+#define IZX IZX16; val = MEM(addr)
+#define IZY IZY16; val = MEM(addr)
+#define ABS ABS16; val = MEM(addr)
+#define ABX ABX16; val = MEM(addr)
+#define ABY ABY16; val = MEM(addr)
 
 // save some keystrokes
 #define OP(num, fam, type) case num: {              \
@@ -592,6 +612,7 @@ void cpu_6502_tick(struct _6502 *cpu)
     REL_OP(0xF0, BEQ, BRANCH_IF(FLAGS.z));  // BEQ rel
 
     IMP_OP(0x00, BRK,                       // BRK imp
+           cpu->nes->is_active = false;
            PUSH((--PC >> 8) & 0xFF);
            PUSH(PC & 0xFF);
            FLAGS.c = 1;
@@ -621,9 +642,27 @@ void cpu_6502_tick(struct _6502 *cpu)
            printf("returning to addr: 0x%X", PC));
 
     OP(0x4C, JMP, ABS);               // JMP abs
-    OP(0x6C, JMP, addr = MEM(PCVAL)); // JMP ind
+    OP(0x6C, JMP, IMP);               // JMP ind
   JMP:
-    printf("PC = 0x%X", PC = addr);
+    if(op == 0x6c) { // ind
+      addr = PCVAL;
+      addr |= PCVAL << 8;
+
+      // XXX: this is an ugly hack
+      if((cpu->nes->rom->map->num == NROM || cpu->nes->rom->map->num == CNROM)
+         && addr == 0x2FF) {
+        PC = 0x300;
+      } else {
+        u8 b1 = MEM(addr), b2 = MEM(addr + 1);
+        PC = b2 << 8;
+        PC |= b1;
+      }
+
+    } else {
+      PC = addr;
+    }
+
+    printf("PC = 0x%X", PC);
     break;
 
     OP(0x24, BIT, ZP);        // BIT zp
